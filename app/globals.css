@@ -44,6 +44,7 @@ button, input { font: inherit; }
 .score { display: flex; align-items: center; gap: 10px; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
 .score strong { font-family: var(--font-display); font-size: 31px; letter-spacing: -.05em; }
 .score i { font-style: normal; font-size: 17px; opacity: .5; }
+.game-play-area { display:grid; grid-template-columns:minmax(0,1fr) 245px; align-items:stretch; }
 .board { display: grid; grid-template-columns: 130px repeat(3, 1fr); background: #fff; }
 .corner, .column-clue, .row-clue, .cell { border-right: 1px solid #c7c4b9; border-bottom: 1px solid #c7c4b9; }
 .corner, .column-clue { min-height: 82px; }
@@ -65,6 +66,19 @@ button, input { font: inherit; }
 .cell small { text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-top: 5px; }
 .cell.correct { background: #dff4d5; color: #17542a; }
 .cell.wrong { background: #f8ded4; color: #8f2e18; }
+.player-pool { background:#171c16; color:white; border-left:1px solid #3d463b; display:flex; flex-direction:column; min-height:436px; }
+.pool-head { background:var(--lime); color:var(--ink); padding:15px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--ink); }
+.pool-head > div { display:flex; flex-direction:column; }
+.pool-head small { font-size:7px; letter-spacing:.13em; font-weight:900; }
+.pool-head strong { font-family:var(--font-display); font-size:20px; text-transform:uppercase; line-height:1; }
+.pool-head > span { border:1px solid var(--ink); border-radius:99px; padding:4px 7px; font-size:8px; font-weight:900; }
+.pool-cards { padding:10px; display:flex; flex-direction:column; gap:6px; max-height:375px; overflow-y:auto; scrollbar-color:#596052 #171c16; }
+.pool-card { flex:0 0 auto; min-height:42px; width:100%; display:grid; grid-template-columns:24px 1fr 18px; align-items:center; gap:6px; background:#242a22; color:white; border:1px solid #41483e; padding:7px 8px; text-align:left; cursor:grab; transition:.15s ease; }
+.pool-card:hover, .pool-card.picked { background:#304126; border-color:var(--lime); transform:translateX(-3px); }
+.pool-card > span { color:#7f887b; font-size:8px; font-weight:800; }
+.pool-card strong { font-family:var(--font-display); font-size:15px; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pool-card b { color:var(--lime); font-size:17px; }
+.player-pool > p { margin:auto 12px 12px; color:#778073; font-size:8px; line-height:1.5; text-transform:uppercase; letter-spacing:.08em; }
 .player-dock { display:grid; grid-template-columns:1.35fr .65fr; gap:16px; padding:18px 22px 10px; background:#f7f5ed; border-top:1px solid #c7c4b9; }
 .answer-form { padding: 0; background: #f7f5ed; }
 .answer-form label { display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 7px; }
@@ -170,6 +184,7 @@ footer > small { text-align: right; }
   .hero { padding-top: 55px; }
   .hero h1 { font-size: 60px; }
   .game-shell { width: calc(100vw - 16px); margin-top: 40px; }
+  .game-play-area { grid-template-columns:1fr; }
   .board { grid-template-columns: 82px repeat(3,1fr); }
   .column-clue, .row-clue { font-size: 8px; padding: 4px; }
   .corner, .column-clue { height: 58px; }
@@ -177,8 +192,11 @@ footer > small { text-align: right; }
   .cell small { font-size: 8px; }
   .answer-form > div { flex-direction: column; gap: 7px; }
   .answer-form button { min-height: 42px; }
-  .player-dock { grid-template-columns:1fr; padding:14px; }
-  .drag-zone { min-height:66px; }
+  .player-pool { min-height:0; border-left:0; border-top:1px solid #3d463b; }
+  .pool-cards { flex-direction:row; overflow-x:auto; overflow-y:hidden; max-height:none; padding:10px; }
+  .pool-card { width:170px; min-width:170px; }
+  .pool-card:hover, .pool-card.picked { transform:translateY(-2px); }
+  .player-pool > p { margin:2px 12px 10px; }
   .game-footer { align-items: stretch; flex-direction: column; }
   .share-button { width: 100%; }
   .ticker { justify-content: flex-start; }

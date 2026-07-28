@@ -15,15 +15,35 @@ export function DailyGrid() {
   const storageKey = `gridiron-grid:${dateKey}`;
   const [cells, setCells] = useState<CellState[]>(Array(9).fill(null));
   const [selected, setSelected] = useState<number | null>(null);
-  const [value, setValue] = useState("");
   const [playerCard, setPlayerCard] = useState("");
-  const [message, setMessage] = useState("Search for a player, then drag the card into a square.");
+  const [message, setMessage] = useState("Drag a player from the right-side pool into a square.");
   const [streak, setStreak] = useState(0);
 
-  const playerNames = useMemo(
-    () => playerOptions(puzzle.teams.map((team) => team.id)),
-    [puzzle],
-  );
+  const playerDeck = useMemo(() => {
+    const allPlayers = playerOptions(puzzle.teams.map((team) => team.id));
+    let seed = [...dateKey].reduce((sum, character) => Math.imul(sum ^ character.charCodeAt(0), 16777619) >>> 0, 2166136261);
+    const shuffle = (values: string[]) => {
+      const copy = [...values];
+      for (let index = copy.length - 1; index > 0; index--) {
+        seed = Math.imul(seed ^ (seed >>> 13), 1274126177) >>> 0;
+        const target = seed % (index + 1);
+        [copy[index], copy[target]] = [copy[target], copy[index]];
+      }
+      return copy;
+    };
+    const shuffled = shuffle(allPlayers);
+    const chosen = new Set<string>();
+    puzzle.teams.forEach((team) => puzzle.categories.forEach((category) => {
+      const candidate = shuffled.find((name) => !chosen.has(normalize(name)) && isValidPlayer(name, team.id, category.id));
+      if (candidate) chosen.add(normalize(candidate));
+    }));
+    for (const candidate of shuffled) {
+      if (chosen.size >= 18) break;
+      chosen.add(normalize(candidate));
+    }
+    const namesByKey = new Map(allPlayers.map((name) => [normalize(name), name]));
+    return shuffle([...chosen].map((key) => namesByKey.get(key)).filter((name): name is string => Boolean(name)));
+  }, [dateKey, puzzle]);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(storageKey);
@@ -57,18 +77,6 @@ export function DailyGrid() {
     if (selected === null) return "";
     return `${puzzle.teams[Math.floor(selected / 3)].name} + ${puzzle.categories[selected % 3].shortLabel}`;
   }, [selected, puzzle]);
-
-  function loadPlayer(event: React.FormEvent) {
-    event.preventDefault();
-    const match = playerNames.find((name) => normalize(name) === normalize(value));
-    if (!match) {
-      setMessage("Choose a player from the search suggestions.");
-      return;
-    }
-    setPlayerCard(match);
-    setValue("");
-    setMessage("Player card ready. Drag it to a square, or tap a square on mobile.");
-  }
 
   function placePlayer(index: number, player: string) {
     if (!player || cells[index]) return;
@@ -112,76 +120,78 @@ export function DailyGrid() {
         <div className="score"><span>SCORE</span><strong>{score}<i>/9</i></strong></div>
       </div>
 
-      <div className="board" role="grid" aria-label="Daily NFL player grid">
-        <div className="corner"><span>TEAM</span><b>×</b><span>FEAT</span></div>
-        {puzzle.categories.map((category) => (
-          <div className="column-clue" key={category.id} title={category.description}>
-            <span>{category.shortLabel}</span><small>{category.description}</small>
-          </div>
-        ))}
-        {puzzle.teams.map((team, rowIndex) => (
-          <div className="board-row" key={team.id}>
-            <div className="row-clue" style={{ "--team": team.color, "--accent": team.accent } as React.CSSProperties}>
-              <img src={teamLogo(team.id)} alt={`${team.name} logo`} width="52" height="52" />
-              <span>{team.shortName}</span>
+      <div className="game-play-area">
+        <div className="board" role="grid" aria-label="Daily NFL player grid">
+          <div className="corner"><span>TEAM</span><b>×</b><span>FEAT</span></div>
+          {puzzle.categories.map((category) => (
+            <div className="column-clue" key={category.id} title={category.description}>
+              <span>{category.shortLabel}</span><small>{category.description}</small>
             </div>
-            {[0,1,2].map((columnIndex) => {
-              const index = rowIndex * 3 + columnIndex;
-              const cell = cells[index];
-              return (
-                <button
-                  key={index}
-                  className={`cell drop-cell ${selected === index ? "selected" : ""} ${playerCard ? "drop-ready" : ""} ${cell?.status ?? ""}`}
-                  onClick={() => handleCellClick(index)}
-                  onDragOver={(event) => {
-                    if (!cell) {
+          ))}
+          {puzzle.teams.map((team, rowIndex) => (
+            <div className="board-row" key={team.id}>
+              <div className="row-clue" style={{ "--team": team.color, "--accent": team.accent } as React.CSSProperties}>
+                <img src={teamLogo(team.id)} alt={`${team.name} logo`} width="52" height="52" />
+                <span>{team.shortName}</span>
+              </div>
+              {[0,1,2].map((columnIndex) => {
+                const index = rowIndex * 3 + columnIndex;
+                const cell = cells[index];
+                return (
+                  <button
+                    key={index}
+                    className={`cell drop-cell ${selected === index ? "selected" : ""} ${playerCard ? "drop-ready" : ""} ${cell?.status ?? ""}`}
+                    onClick={() => handleCellClick(index)}
+                    onDragOver={(event) => {
+                      if (!cell) {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                      }
+                    }}
+                    onDrop={(event) => {
                       event.preventDefault();
-                      event.dataTransfer.dropEffect = "move";
-                    }
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    placePlayer(index, event.dataTransfer.getData("text/plain") || playerCard);
-                  }}
-                  aria-label={`${team.name} and ${puzzle.categories[columnIndex].label}${cell ? `: ${cell.answer}` : ""}`}
-                >
-                  {cell ? <><span>{cell.status === "correct" ? "✓" : "×"}</span><small>{cell.answer}</small></> : <><b>+</b>{playerCard && <em>DROP</em>}</>}
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-
-      <div className="player-dock">
-        <form className="answer-form" onSubmit={loadPlayer}>
-          <label htmlFor="player">{clue || "Find a player card"}</label>
-          <div>
-            <input id="player" list="player-names" value={value} onChange={(event) => setValue(event.target.value)} placeholder="Search 2,610 NFL players…" autoComplete="off" />
-            <datalist id="player-names">{playerNames.map((name) => <option value={name} key={name} />)}</datalist>
-            <button disabled={!value.trim()}>Create card</button>
-          </div>
-        </form>
-        <div className={`drag-zone ${playerCard ? "has-card" : ""}`}>
-          {playerCard ? (
-            <button
-              className="player-card"
-              draggable
-              onDragStart={(event) => {
-                event.dataTransfer.setData("text/plain", playerCard);
-                event.dataTransfer.effectAllowed = "move";
-              }}
-              onClick={() => setMessage("Player selected. Tap any empty square to place the card.")}
-              aria-label={`${playerCard} player card. Drag or tap to place.`}
-            >
-              <span className="card-grip">⠿</span>
-              <span><small>PLAYER CARD</small><strong>{playerCard}</strong></span>
-              <b>DRAG</b>
-            </button>
-          ) : (
-            <div className="empty-card"><span>＋</span><p>Your player card appears here</p></div>
-          )}
+                      placePlayer(index, event.dataTransfer.getData("text/plain") || playerCard);
+                    }}
+                    aria-label={`${team.name} and ${puzzle.categories[columnIndex].label}${cell ? `: ${cell.answer}` : ""}`}
+                  >
+                    {cell ? <><span>{cell.status === "correct" ? "✓" : "×"}</span><small>{cell.answer}</small></> : <><b>+</b>{playerCard && <em>DROP</em>}</>}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
+
+        <aside className="player-pool" aria-label="Player card pool">
+          <div className="pool-head">
+            <div><small>DAILY PLAYER POOL</small><strong>Drag a player</strong></div>
+            <span>{playerDeck.length - cells.filter(Boolean).length} left</span>
+          </div>
+          <div className="pool-cards">
+            {playerDeck.filter((name) => !cells.some((cell) => cell && normalize(cell.answer) === normalize(name))).map((name, index) => (
+              <button
+                key={name}
+                className={`pool-card ${playerCard === name ? "picked" : ""}`}
+                draggable
+                onDragStart={(event) => {
+                  setPlayerCard(name);
+                  event.dataTransfer.setData("text/plain", name);
+                  event.dataTransfer.effectAllowed = "move";
+                }}
+                onClick={() => {
+                  setPlayerCard(name);
+                  setMessage(`${name} selected. Tap an empty square to place the card.`);
+                }}
+                aria-label={`${name}. Drag to a grid square.`}
+              >
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{name}</strong>
+                <b>⠿</b>
+              </button>
+            ))}
+          </div>
+          <p>Desktop: drag and drop<br />Mobile: tap card, then square</p>
+        </aside>
       </div>
 
       <div className="game-footer">
