@@ -299,6 +299,11 @@ footer > small { text-align: right; }
 .nba-pool>button strong { font-family:var(--font-display); text-transform:uppercase; font-size:15px; }
 .nba-pool>button b { color:#ff6b35; }
 .nba-game>footer { grid-column:1/-1; display:flex; justify-content:space-between; padding:16px 18px; background:#e7e1d4; font-size:10px; }
+.sport-game-footer { align-items:center; gap:12px; }
+.sport-game-footer > span { flex:1; }
+.sport-game-footer > div { display:flex; gap:7px; }
+.sport-game-footer a,.sport-game-footer button { border:1px solid var(--ink); background:transparent; color:var(--ink); padding:8px 10px; font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:.06em; cursor:pointer; white-space:nowrap; }
+.sport-game-footer button { background:var(--ink); color:white; }
 .sport-next { padding:100px max(24px,calc((100vw - 1100px)/2)); background:#f0ecdf; color:var(--ink); }
 .sport-next h2 { font-family:var(--font-display); font-size:clamp(55px,7vw,85px); text-transform:uppercase; letter-spacing:-.04em; margin:15px 0 45px; }
 .sport-next>div { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
@@ -319,5 +324,7 @@ footer > small { text-align: right; }
   .nba-pool { grid-column:1; grid-row:auto; display:flex; overflow-x:auto; max-height:none; }
   .nba-pool header { min-width:120px; flex-direction:column; }
   .nba-pool>button { min-width:165px; }
+  .sport-game-footer { flex-wrap:wrap; }
+  .sport-game-footer > span { flex-basis:100%; }
   .sport-next>div { grid-template-columns:1fr; }
 }

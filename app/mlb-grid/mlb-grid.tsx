@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { easternPuzzleDate } from "../game-data";
 
-const boards = [
+export const mlbBoards = [
   {
     teams:[{id:"NYY",name:"Yankees",color:"#003087"},{id:"LAD",name:"Dodgers",color:"#005A9C"},{id:"BOS",name:"Red Sox",color:"#BD3039"}],
     categories:[
@@ -37,7 +37,7 @@ const normalize = (value:string) => value.toLowerCase().replace(/[^a-z0-9]/g,"")
 
 export function MlbGrid() {
   const dateKey = useMemo(() => easternPuzzleDate(), []);
-  const board = boards[(Number(dateKey.slice(-2)) + 1) % boards.length];
+  const board = mlbBoards[(Number(dateKey.slice(-2)) + 1) % mlbBoards.length];
   const [cells,setCells] = useState<(string|null)[]>(Array(9).fill(null));
   const [selected,setSelected] = useState("");
   const [message,setMessage] = useState("Drag one of the nine players into the right statistical matchup.");
@@ -55,6 +55,15 @@ export function MlbGrid() {
     const next=[...cells]; next[index]=name; setCells(next); setSelected(""); setMessage("Safe! That player fits both the club and the stat.");
   }
 
+  async function share() {
+    const squares = cells.map((cell) => cell ? "🟩" : "⬜");
+    const text = `MLB Grid — ${cells.filter(Boolean).length}/9\n${squares.slice(0,3).join("")}\n${squares.slice(3,6).join("")}\n${squares.slice(6,9).join("")}\nhttps://gridirongrid.org/mlb-grid/`;
+    try {
+      if (navigator.share) await navigator.share({ title:"MLB Grid", text });
+      else { await navigator.clipboard.writeText(text); setMessage("Result copied with the gridirongrid.org link."); }
+    } catch {}
+  }
+
   return (
     <div className="nba-game mlb-game">
       <div className="nba-board">
@@ -66,7 +75,7 @@ export function MlbGrid() {
         </div>)}
       </div>
       <aside className="nba-pool"><header><small>9-PLAYER POOL</small><strong>{available.length} left</strong></header>{available.map((name)=><button className={selected===name?"picked":""} key={name} draggable onDragStart={(event)=>{event.dataTransfer.setData("text/plain",name);setSelected(name)}} onClick={()=>setSelected(name)}><span>⚾</span><strong>{name}</strong><b>⠿</b></button>)}</aside>
-      <footer><span>{message}</span><b>{cells.filter(Boolean).length}/9 complete · {dateKey}</b></footer>
+      <footer className="sport-game-footer"><span>{message}</span><b>{cells.filter(Boolean).length}/9 complete · {dateKey}</b><div><a href="/mlb-grid/archive/">Past answers</a><button onClick={share}>Share result ↗</button></div></footer>
     </div>
   );
 }

@@ -111,7 +111,7 @@ export function DailyGrid() {
 
   async function share() {
     const squares = cells.map((cell) => cell?.status === "correct" ? "🟩" : cell ? "🟥" : "⬜");
-    const text = `Gridiron Grid #${puzzle.number} — ${score}/9\n${squares.slice(0,3).join("")}\n${squares.slice(3,6).join("")}\n${squares.slice(6,9).join("")}\n🔥 ${streak} day streak\nhttps://gridirongrid.to/`;
+    const text = `Gridiron Grid #${puzzle.number} — ${score}/9\n${squares.slice(0,3).join("")}\n${squares.slice(3,6).join("")}\n${squares.slice(6,9).join("")}\n🔥 ${streak} day streak\nhttps://gridirongrid.org/`;
     try {
       if (navigator.share) await navigator.share({ title: "Gridiron Grid", text });
       else {

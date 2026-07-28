@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { easternPuzzleDate } from "../game-data";
 
-const boards = [
+export const nbaBoards = [
   {
     teams:[{id:"LAL",name:"Lakers",color:"#552583"},{id:"BOS",name:"Celtics",color:"#007A33"},{id:"GSW",name:"Warriors",color:"#1D428A"}],
     categories:[
@@ -37,7 +37,7 @@ const normalize = (value:string) => value.toLowerCase().replace(/[^a-z0-9]/g,"")
 
 export function NbaGrid() {
   const dateKey = useMemo(() => easternPuzzleDate(), []);
-  const board = boards[Math.abs([...dateKey].reduce((sum,char)=>sum+char.charCodeAt(0),0)) % boards.length];
+  const board = nbaBoards[Math.abs([...dateKey].reduce((sum,char)=>sum+char.charCodeAt(0),0)) % nbaBoards.length];
   const [cells,setCells] = useState<(string|null)[]>(Array(9).fill(null));
   const [selected,setSelected] = useState("");
   const [message,setMessage] = useState("Hard mode: place all nine players with no repeats.");
@@ -55,6 +55,15 @@ export function NbaGrid() {
     const next=[...cells]; next[index]=name; setCells(next); setSelected(""); setMessage("Bucket! That player clears the career threshold.");
   }
 
+  async function share() {
+    const squares = cells.map((cell) => cell ? "🟩" : "⬜");
+    const text = `NBA Grid — ${cells.filter(Boolean).length}/9\n${squares.slice(0,3).join("")}\n${squares.slice(3,6).join("")}\n${squares.slice(6,9).join("")}\nhttps://gridirongrid.org/nba-grid/`;
+    try {
+      if (navigator.share) await navigator.share({ title:"NBA Grid", text });
+      else { await navigator.clipboard.writeText(text); setMessage("Result copied with the gridirongrid.org link."); }
+    } catch {}
+  }
+
   return (
     <div className="nba-game">
       <div className="nba-board">
@@ -66,7 +75,7 @@ export function NbaGrid() {
         </div>)}
       </div>
       <aside className="nba-pool"><header><small>9-PLAYER POOL</small><strong>{available.length} left</strong></header>{available.map((name)=><button className={selected===name?"picked":""} key={name} draggable onDragStart={(event)=>{event.dataTransfer.setData("text/plain",name);setSelected(name)}} onClick={()=>setSelected(name)}><span>🏀</span><strong>{name}</strong><b>⠿</b></button>)}</aside>
-      <footer><span>{message}</span><b>{cells.filter(Boolean).length}/9 complete · {dateKey}</b></footer>
+      <footer className="sport-game-footer"><span>{message}</span><b>{cells.filter(Boolean).length}/9 complete · {dateKey}</b><div><a href="/nba-grid/archive/">Past answers</a><button onClick={share}>Share result ↗</button></div></footer>
     </div>
   );
 }
