@@ -40,20 +40,20 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "/",
     siteName: "Gridiron Grid",
-    title: "Gridiron Grid – Daily Football Grid Game",
+    title: "Gridiron Grid - Daily NFL Puzzle",
     description: "Nine squares. Nine guesses. A fresh NFL puzzle every day.",
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "Gridiron Grid daily football puzzle" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Gridiron Grid – Daily Football Grid Game",
+    title: "Gridiron Grid - Daily NFL Puzzle",
     description: "Nine squares. Nine guesses. A fresh NFL puzzle every day.",
     images: ["/og.png"],
   },
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/logo.svg",
+    icon: "/logo.svg?v=2",
+    shortcut: "/logo.svg?v=2",
+    apple: "/logo.svg?v=2",
   },
 };
 

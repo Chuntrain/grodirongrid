@@ -37,7 +37,7 @@ const faq = [
 ];
 
 export const metadata: Metadata = {
-  title: "Gridiron Grid – Free Daily NFL Grid Game | New Puzzle Every Day",
+  title: { absolute: "Gridiron Grid - Free Daily NFL Grid Game" },
   description:
     "Play the free daily Gridiron Grid. Fill a 3×3 football grid by matching NFL players to teams, stats, and achievements. A new puzzle arrives every day.",
   alternates: { canonical: "/" },

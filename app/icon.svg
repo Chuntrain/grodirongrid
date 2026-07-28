@@ -1,0 +1,7 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="96" fill="#10140F"/>
+  <circle cx="140" cy="140" r="72" fill="#D4FF39"/>
+  <path d="M171 140c0 17-13 31-31 31h-8v22h-22V109h30c18 0 31 14 31 31zm-22 0c0-6-4-10-10-10h-7v20h7c6 0 10-4 10-10z" fill="#10140F"/>
+  <text x="74" y="300" fill="#F3F0E7" font-family="Arial, Helvetica, sans-serif" font-size="92" font-weight="800">GRIDIRON</text>
+  <text x="74" y="390" fill="#D4FF39" font-family="Arial, Helvetica, sans-serif" font-size="92" font-weight="800">GRID</text>
+</svg>
