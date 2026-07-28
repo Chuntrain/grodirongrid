@@ -58,6 +58,16 @@ export const teams: Team[] = [
 
 type AnswerSet = Record<Category["id"], string[]>;
 
+export type PlayerRecord = {
+  name: string;
+  teams: string[];
+  proBowl: boolean;
+  superBowl: boolean;
+  rush1000: boolean;
+};
+
+export const playerDatabase = rawPlayerDatabase as PlayerRecord[];
+
 // A compact, verified starter knowledge base. Each intersection has at least one
 // canonical answer, so every generated board is always solvable.
 export const answers: Record<string, AnswerSet> = {
@@ -94,6 +104,38 @@ export const answers: Record<string, AnswerSet> = {
   TEN:{proBowl:["Steve McNair","Derrick Henry"],superBowl:["Malcolm Butler","Logan Ryan"],rush1000:["Eddie George","Derrick Henry"]},
   WSH:{proBowl:["Darrell Green","Art Monk"],superBowl:["Doug Williams","John Riggins"],rush1000:["John Riggins","Clinton Portis"]},
 };
+
+function normalizeName(value: string) {
+  return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+}
+
+const playerIndex = new Map<string, PlayerRecord[]>();
+for (const player of playerDatabase) {
+  const key = normalizeName(player.name);
+  const current = playerIndex.get(key) ?? [];
+  current.push(player);
+  playerIndex.set(key, current);
+}
+
+export function isValidPlayer(name: string, teamId: string, categoryId: Category["id"]) {
+  const normalized = normalizeName(name);
+  const databaseMatch = (playerIndex.get(normalized) ?? []).some(
+    (player) => player.teams.includes(teamId) && player[categoryId],
+  );
+  if (databaseMatch) return true;
+  return answers[teamId][categoryId].some((candidate) => normalizeName(candidate) === normalized);
+}
+
+export function playerOptions(teamIds: string[]) {
+  const names = new Set<string>();
+  for (const player of playerDatabase) {
+    if (player.teams.some((team) => teamIds.includes(team))) names.add(player.name);
+  }
+  for (const teamId of teamIds) {
+    for (const category of categories) answers[teamId][category.id].forEach((name) => names.add(name));
+  }
+  return [...names].sort((a, b) => a.localeCompare(b));
+}
 
 export function teamLogo(teamId: string) {
   return `/teams/${teamId.toLowerCase()}.png`;
@@ -134,3 +176,4 @@ export function dailyPuzzle(dateKey: string) {
   const number = Math.floor((new Date(`${dateKey}T00:00:00Z`).getTime() - new Date("2026-01-01T00:00:00Z").getTime()) / 86400000) + 1;
   return { dateKey, number, teams: selected, categories };
 }
+import rawPlayerDatabase from "./player-db.json";

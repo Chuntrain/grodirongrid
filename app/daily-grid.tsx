@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { answers, dailyPuzzle, easternPuzzleDate, teamLogo } from "./game-data";
+import { dailyPuzzle, easternPuzzleDate, isValidPlayer, playerDatabase, playerOptions, teamLogo } from "./game-data";
 
 type CellState = { answer: string; status: "correct" | "wrong" } | null;
 
@@ -20,11 +20,7 @@ export function DailyGrid() {
   const [streak, setStreak] = useState(0);
 
   const playerNames = useMemo(() => {
-    const names = new Set<string>();
-    puzzle.teams.forEach((team) => puzzle.categories.forEach((category) => {
-      answers[team.id][category.id].forEach((name) => names.add(name));
-    }));
-    return [...names].sort();
+    return playerOptions(puzzle.teams.map((team) => team.id));
   }, [puzzle]);
 
   useEffect(() => {
@@ -69,7 +65,7 @@ export function DailyGrid() {
     }
     const team = puzzle.teams[Math.floor(selected / 3)];
     const category = puzzle.categories[selected % 3];
-    const valid = answers[team.id][category.id].some((name) => normalize(name) === normalize(value));
+    const valid = isValidPlayer(value, team.id, category.id);
     const next = [...cells];
     next[selected] = { answer: value.trim(), status: valid ? "correct" : "wrong" };
     setCells(next);
@@ -137,7 +133,7 @@ export function DailyGrid() {
       </form>
 
       <div className="game-footer">
-        <div><span>{message}</span><small>{9 - guesses} guesses left · refreshes daily</small></div>
+        <div><span>{message}</span><small>{9 - guesses} guesses left · {playerDatabase.length.toLocaleString()} qualifying players indexed</small></div>
         <button className="share-button" onClick={share}>Share result <span>↗</span></button>
       </div>
     </div>

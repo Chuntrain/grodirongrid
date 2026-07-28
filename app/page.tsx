@@ -139,7 +139,7 @@ export default function Home() {
               </section>
             ))}
           </div>
-          <p className="marks-note">Team names and logos are trademarks of their respective owners. Gridiron Grid is an independent fan project.</p>
+          <p className="marks-note">Player history and season statistics are built from nflverse data, with a curated historical supplement. Team names and logos are trademarks of their respective owners. Gridiron Grid is an independent fan project.</p>
         </section>
 
         <article className="guide">
