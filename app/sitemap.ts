@@ -1,28 +1,21 @@
 import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now=new Date();
-  const pages:MetadataRoute.Sitemap=[
-    {url:"https://gridirongrid.org/",lastModified:now,changeFrequency:"daily",priority:1},
-    {url:"https://gridirongrid.org/archive/",lastModified:now,changeFrequency:"daily",priority:.7},
-    {url:"https://gridirongrid.org/how-to-play/",lastModified:now,changeFrequency:"monthly",priority:.7},
-    {url:"https://gridirongrid.org/strategies/",lastModified:now,changeFrequency:"monthly",priority:.7},
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gridirongrid.org";
+  const now = new Date();
+
+  return [
+    { url: `${siteUrl}/`, lastModified: now, changeFrequency: "daily", priority: 1 },
+    { url: `${siteUrl}/archive`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
+    { url: `${siteUrl}/how-to-play`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${siteUrl}/strategies`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${siteUrl}/nba-grid`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
+    { url: `${siteUrl}/nba-grid/archive`, lastModified: now, changeFrequency: "daily", priority: 0.7 },
+    { url: `${siteUrl}/nba-grid/how-to-play`, lastModified: now, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${siteUrl}/nba-grid/strategies`, lastModified: now, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${siteUrl}/mlb-grid`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
+    { url: `${siteUrl}/mlb-grid/archive`, lastModified: now, changeFrequency: "daily", priority: 0.7 },
+    { url: `${siteUrl}/mlb-grid/how-to-play`, lastModified: now, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${siteUrl}/mlb-grid/strategies`, lastModified: now, changeFrequency: "weekly", priority: 0.6 },
   ];
-  for(const sport of ["nba-grid","mlb-grid"]){
-    pages.push(
-      {url:`https://gridirongrid.org/${sport}/`,lastModified:now,changeFrequency:"daily",priority:.9},
-      {url:`https://gridirongrid.org/${sport}/archive/`,lastModified:now,changeFrequency:"daily",priority:.6},
-      {url:`https://gridirongrid.org/${sport}/how-to-play/`,lastModified:now,changeFrequency:"monthly",priority:.7},
-      {url:`https://gridirongrid.org/${sport}/strategies/`,lastModified:now,changeFrequency:"monthly",priority:.7},
-    );
-  }
-  for(let index=1;index<=14;index++){
-    const day=new Date(now);day.setUTCDate(day.getUTCDate()-index);const date=day.toISOString().slice(0,10);
-    pages.push(
-      {url:`https://gridirongrid.org/game/${date}/`,lastModified:now,changeFrequency:"never",priority:.55},
-      {url:`https://gridirongrid.org/nba-grid/game/${date}/`,lastModified:now,changeFrequency:"never",priority:.5},
-      {url:`https://gridirongrid.org/mlb-grid/game/${date}/`,lastModified:now,changeFrequency:"never",priority:.5},
-    );
-  }
-  return pages;
 }

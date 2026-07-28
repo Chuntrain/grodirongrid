@@ -14,8 +14,11 @@ const sans = Inter({
   weight: ["400", "500", "600", "700", "800"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gridirongrid.org";
+const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://gridirongrid.org"),
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Gridiron Grid – Daily Football Grid Game",
     template: "%s | Gridiron Grid",
@@ -29,6 +32,9 @@ export const metadata: Metadata = {
   publisher: "Gridiron Grid",
   category: "games",
   robots: { index: true, follow: true },
+  verification: {
+    google: googleSiteVerification,
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -44,7 +50,11 @@ export const metadata: Metadata = {
     description: "Nine squares. Nine guesses. A fresh NFL puzzle every day.",
     images: ["/og.png"],
   },
-  icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/logo.svg",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

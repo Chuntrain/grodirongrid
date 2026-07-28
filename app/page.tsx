@@ -44,7 +44,15 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gridirongrid.org";
   const schema = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "Gridiron Grid",
+      url: siteUrl,
+      logo: `${siteUrl}/logo.svg`,
+    },
     {
       "@context": "https://schema.org",
       "@type": "Game",
@@ -57,7 +65,7 @@ export default function Home() {
       applicationCategory: "Game",
       isAccessibleForFree: true,
       inLanguage: "en-US",
-      url: "https://gridirongrid.org/",
+      url: `${siteUrl}/`,
     },
     {
       "@context": "https://schema.org",
@@ -76,13 +84,13 @@ export default function Home() {
           "@type": "ListItem",
           position: 1,
           name: "Home",
-          item: "https://gridirongrid.org/",
+          item: `${siteUrl}/`,
         },
         {
           "@type": "ListItem",
           position: 2,
           name: "NFL Grid",
-          item: "https://gridirongrid.org/#play",
+          item: `${siteUrl}/#play`,
         },
       ],
     },

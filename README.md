@@ -36,6 +36,20 @@ $env:NITRO_PRESET="vercel"; $env:VERCEL="1"; npx vite build
 
 Production URL after deploy: `https://grodirongrid.vercel.app`
 
+## SEO / Google settings
+
+Set these before production deploy:
+
+- `NEXT_PUBLIC_SITE_URL` (example: `https://gridirongrid.org`)
+- `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` (Search Console token value only)
+
+The app now includes:
+
+- site logo at `public/logo.svg`
+- metadata verification tag wiring in `app/layout.tsx`
+- `robots.txt` via `app/robots.ts`
+- `sitemap.xml` via `app/sitemap.ts`
+
 ## Included Shape
 
 - edit site code under `app/`
