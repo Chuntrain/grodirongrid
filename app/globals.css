@@ -58,18 +58,33 @@ button, input { font: inherit; }
 .row-clue span { font-size: 9px; line-height: 1.1; }
 .cell { min-height: 118px; background: #fbfaf6; cursor: pointer; border-top: 0; border-left: 0; transition: .2s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; }
 .cell:hover, .cell.selected { background: #efffc0; box-shadow: inset 0 0 0 3px var(--lime); }
+.cell.drop-ready:not(.correct):not(.wrong) { background-image: repeating-linear-gradient(-45deg, transparent 0 8px, #d4ff3917 8px 16px); }
+.cell em { display:block; margin-top:5px; color:#6b762f; font-style:normal; font-size:7px; letter-spacing:.14em; }
 .cell b { font-size: 22px; font-weight: 400; color: #a5a49c; }
 .cell span { font-size: 24px; }
 .cell small { text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-top: 5px; }
 .cell.correct { background: #dff4d5; color: #17542a; }
 .cell.wrong { background: #f8ded4; color: #8f2e18; }
-.answer-form { padding: 18px 22px 8px; background: #f7f5ed; }
+.player-dock { display:grid; grid-template-columns:1.35fr .65fr; gap:16px; padding:18px 22px 10px; background:#f7f5ed; border-top:1px solid #c7c4b9; }
+.answer-form { padding: 0; background: #f7f5ed; }
 .answer-form label { display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 7px; }
 .answer-form > div { display: flex; }
 .answer-form input { flex: 1; min-width: 0; border: 1px solid #aaa99f; background: white; padding: 12px 14px; outline: none; }
 .answer-form input:focus { border-color: var(--field); }
 .answer-form button, .share-button { border: 0; background: var(--ink); color: white; font-weight: 800; text-transform: uppercase; font-size: 11px; letter-spacing: .07em; padding: 0 22px; cursor: pointer; }
 .answer-form button:disabled { opacity: .35; cursor: not-allowed; }
+.drag-zone { min-height:72px; border:1px dashed #aaa99f; background:#ece9df; display:grid; place-items:center; padding:6px; }
+.drag-zone.has-card { border-color:var(--field); background:#e7efd9; }
+.empty-card { display:flex; align-items:center; gap:8px; color:#858980; font-size:10px; text-transform:uppercase; letter-spacing:.06em; }
+.empty-card span { font-size:20px; color:#a8aaa3; }
+.empty-card p { margin:0; }
+.player-card { width:100%; min-height:58px; border:1px solid var(--ink); background:var(--lime); color:var(--ink); display:grid; grid-template-columns:25px 1fr auto; align-items:center; gap:8px; padding:9px 11px; cursor:grab; box-shadow:3px 3px 0 var(--ink); text-align:left; }
+.player-card:active { cursor:grabbing; transform:translate(2px,2px); box-shadow:1px 1px 0 var(--ink); }
+.player-card > span:nth-child(2) { display:flex; flex-direction:column; min-width:0; }
+.player-card small { font-size:7px; letter-spacing:.12em; font-weight:800; }
+.player-card strong { font-family:var(--font-display); font-size:18px; line-height:1; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.player-card > b { font-size:8px; letter-spacing:.08em; }
+.card-grip { font-size:21px; }
 .game-footer { padding: 14px 22px 18px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .game-footer > div { display: flex; flex-direction: column; font-size: 11px; }
 .game-footer small { color: #777; margin-top: 3px; }
@@ -162,6 +177,8 @@ footer > small { text-align: right; }
   .cell small { font-size: 8px; }
   .answer-form > div { flex-direction: column; gap: 7px; }
   .answer-form button { min-height: 42px; }
+  .player-dock { grid-template-columns:1fr; padding:14px; }
+  .drag-zone { min-height:66px; }
   .game-footer { align-items: stretch; flex-direction: column; }
   .share-button { width: 100%; }
   .ticker { justify-content: flex-start; }
