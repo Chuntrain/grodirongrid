@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DailyGrid } from "./daily-grid";
+import { teams, teamLogo } from "./game-data";
 
 const faq = [
   {
@@ -116,6 +117,29 @@ export default function Home() {
           <span>9 GUESSES</span><i>✦</i>
           <span>BUILD YOUR STREAK</span><i>✦</i>
           <span>SHARE YOUR SCORE</span>
+        </section>
+
+        <section className="team-directory" aria-labelledby="teams-title">
+          <div className="team-directory-head">
+            <div><p className="section-kicker">ALL 32 CLUBS</p><h2 id="teams-title">Every team is in play</h2></div>
+            <p>Today’s board pulls three clubs from the complete NFL field. Come back after 8 PM ET for a new combination.</p>
+          </div>
+          <div className="conference-groups">
+            {(["AFC", "NFC"] as const).map((conference) => (
+              <section key={conference} className="conference">
+                <h3>{conference}</h3>
+                <div className="team-wall">
+                  {teams.filter((team) => team.conference === conference).map((team) => (
+                    <div className="team-tile" key={team.id} style={{ "--team": team.color, "--accent": team.accent } as React.CSSProperties}>
+                      <img src={teamLogo(team.id)} alt={`${team.name} logo`} width="48" height="48" loading="lazy" />
+                      <span><strong>{team.shortName}</strong><small>{team.division}</small></span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+          <p className="marks-note">Team names and logos are trademarks of their respective owners. Gridiron Grid is an independent fan project.</p>
         </section>
 
         <article className="guide">
