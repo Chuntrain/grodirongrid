@@ -87,8 +87,8 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
   }, [selected, puzzle]);
 
   function placePlayer(index: number, player: string) {
-    if (!player || cells[index]) return;
-    if (cells.some((cell) => cell?.status === "correct" && normalize(cell.answer) === normalize(player))) {
+    if (!player) return;
+    if (cells.some((cell, cellIndex) => cellIndex !== index && normalize(cell?.answer ?? "") === normalize(player))) {
       setMessage("That player is already on your board. Choose a different name.");
       return;
     }
@@ -98,13 +98,21 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
     const next = [...cells];
     next[index] = { answer: player, status: valid ? "correct" : "wrong" };
     setCells(next);
-    setMessage(valid ? "Touchdown! That player fits both clues." : "No match. That guess is now locked.");
+    setMessage(valid ? "Touchdown! That player fits both clues. Tap the name to replace it." : "No match. Tap the name to remove or replace it.");
     setPlayerCard("");
     setSelected(null);
   }
 
   function handleCellClick(index: number) {
-    if (cells[index]) return;
+    if (cells[index]) {
+      const removed = cells[index]?.answer;
+      const next = [...cells];
+      next[index] = null;
+      setCells(next);
+      setSelected(index);
+      setMessage(`${removed} returned to the player pool. Select a replacement.`);
+      return;
+    }
     setSelected(index);
     if (playerCard) placePlayer(index, playerCard);
   }
@@ -154,10 +162,8 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
                     className={`cell drop-cell ${selected === index ? "selected" : ""} ${playerCard ? "drop-ready" : ""} ${cell?.status ?? ""}`}
                     onClick={() => handleCellClick(index)}
                     onDragOver={(event) => {
-                      if (!cell) {
-                        event.preventDefault();
-                        event.dataTransfer.dropEffect = "move";
-                      }
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = "move";
                     }}
                     onDrop={(event) => {
                       event.preventDefault();
@@ -165,7 +171,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
                     }}
                     aria-label={`${team.name} and ${puzzle.categories[columnIndex].label}${cell ? `: ${cell.answer}` : ""}`}
                   >
-                    {cell ? <><span>{cell.status === "correct" ? "✓" : "×"}</span><small>{cell.answer}</small></> : <><b>+</b>{playerCard && <em>DROP</em>}</>}
+                    {cell ? <><span>{cell.status === "correct" ? "✓" : "×"}</span><small>{cell.answer}</small><em>REPLACE</em></> : <><b>+</b>{playerCard && <em>DROP</em>}</>}
                   </button>
                 );
               })}
@@ -201,7 +207,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
               </button>
             ))}
           </div>
-          <p>Desktop: drag and drop<br />Mobile: tap card, then square</p>
+          <p>Desktop: drag and drop<br />Mobile: tap card, then square<br />Tap a placed name to remove it</p>
         </aside>
       </div>
 
