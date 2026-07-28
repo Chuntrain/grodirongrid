@@ -18,6 +18,24 @@ npm run build
 
 This starter does not use `wrangler.jsonc`.
 
+## Deploy to Vercel
+
+This app is a vinext SSR project. On Vercel it builds with [Nitro](https://v3.nitro.build/)
+(not a static `dist/client` upload).
+
+1. Connect the GitHub repo in the Vercel dashboard (or use `vercel git connect`)
+2. Keep the build command as `npx vite build` (see `vercel.json`)
+3. Do **not** set Output Directory to `dist/client` — Nitro writes `.vercel/output`
+
+Local Vercel-shaped build:
+
+```bash
+# PowerShell
+$env:NITRO_PRESET="vercel"; $env:VERCEL="1"; npx vite build
+```
+
+Production URL after deploy: `https://grodirongrid.vercel.app`
+
 ## Included Shape
 
 - edit site code under `app/`
