@@ -35,14 +35,14 @@ export function PuzzleArchive() {
               <b>{open === index ? "Hide answers −" : "View answers +"}</b>
             </button>
             {open === index && (
-              <div className="archive-answer-grid">
+              <><div className="archive-answer-grid">
                 {puzzle.teams.map((team) => puzzle.categories.map((category) => (
                   <div key={`${team.id}-${category.id}`}>
                     <img src={teamLogo(team.id)} alt="" />
                     <span><small>{team.shortName} × {category.shortLabel}</small><strong>{validPlayers(team.id, category.id)[0]}</strong></span>
                   </div>
                 )))}
-              </div>
+              </div><a className="archive-play-link" href={`/game/${puzzle.dateKey}/`}>Play this archived grid →</a></>
             )}
           </article>
         ))}

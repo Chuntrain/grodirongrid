@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { NbaGrid } from "./nba-grid";
+import { SportSeoContent } from "../sport-content";
 
 export const metadata: Metadata = {
   title: "NBA Grid – Daily Basketball Player Puzzle",
@@ -20,6 +21,7 @@ export default function NbaGridPage() {
           <div><p className="eyebrow"><span /> DAILY BASKETBALL PUZZLE</p><h1>NBA <em>Grid</em></h1><p>Drag the right player into every square. Nine picks. No repeats.</p></div>
           <NbaGrid />
         </section>
+        <SportSeoContent sport="NBA" />
         <section className="sport-next" id="more">
           <p className="section-kicker">MORE LEAGUES</p><h2>One grid. Every sport.</h2>
           <div><a href="/">🏈 <strong>NFL Grid</strong><span>Play now →</span></a><a href="/nba-grid/">🏀 <strong>NBA Grid</strong><span>Playing</span></a><a href="/mlb-grid/"><span>⚾</span><strong>MLB Grid</strong><span>Play now →</span></a></div>

@@ -35,8 +35,8 @@ export const nbaBoards = [
 ];
 const normalize = (value:string) => value.toLowerCase().replace(/[^a-z0-9]/g,"");
 
-export function NbaGrid() {
-  const dateKey = useMemo(() => easternPuzzleDate(), []);
+export function NbaGrid({ date: requestedDate }: { date?: string } = {}) {
+  const dateKey = useMemo(() => requestedDate || easternPuzzleDate(), [requestedDate]);
   const board = nbaBoards[Math.abs([...dateKey].reduce((sum,char)=>sum+char.charCodeAt(0),0)) % nbaBoards.length];
   const [cells,setCells] = useState<(string|null)[]>(Array(9).fill(null));
   const [selected,setSelected] = useState("");

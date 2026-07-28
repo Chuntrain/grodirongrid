@@ -15,7 +15,7 @@ const sans = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://gridirongrid.to"),
+  metadataBase: new URL("https://gridirongrid.org"),
   title: {
     default: "Gridiron Grid – Daily Football Grid Game",
     template: "%s | Gridiron Grid",

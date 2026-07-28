@@ -35,8 +35,8 @@ export const mlbBoards = [
 ];
 const normalize = (value:string) => value.toLowerCase().replace(/[^a-z0-9]/g,"");
 
-export function MlbGrid() {
-  const dateKey = useMemo(() => easternPuzzleDate(), []);
+export function MlbGrid({ date: requestedDate }: { date?: string } = {}) {
+  const dateKey = useMemo(() => requestedDate || easternPuzzleDate(), [requestedDate]);
   const board = mlbBoards[(Number(dateKey.slice(-2)) + 1) % mlbBoards.length];
   const [cells,setCells] = useState<(string|null)[]>(Array(9).fill(null));
   const [selected,setSelected] = useState("");

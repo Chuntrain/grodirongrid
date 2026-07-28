@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       { userAgent: "*", allow: "/" },
       { userAgent: ["GPTBot", "ChatGPT-User", "PerplexityBot", "ClaudeBot"], allow: "/" },
     ],
-    sitemap: "https://gridirongrid.to/sitemap.xml",
-    host: "https://gridirongrid.to",
+    sitemap: "https://gridirongrid.org/sitemap.xml",
+    host: "https://gridirongrid.org",
   };
 }

@@ -9,8 +9,8 @@ function normalize(value: string) {
   return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 }
 
-export function DailyGrid() {
-  const dateKey = useMemo(() => easternPuzzleDate(), []);
+export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
+  const dateKey = useMemo(() => requestedDate || easternPuzzleDate(), [requestedDate]);
   const puzzle = useMemo(() => dailyPuzzle(dateKey), [dateKey]);
   const storageKey = `gridiron-grid:${dateKey}`;
   const [cells, setCells] = useState<CellState[]>(Array(9).fill(null));
