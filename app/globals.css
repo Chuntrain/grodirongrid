@@ -275,6 +275,10 @@ footer > small { text-align: right; }
 .nba-board { display:grid; grid-template-columns:110px repeat(3,1fr); }
 .nba-corner,.nba-category,.nba-team,.nba-row>button { border-right:1px solid #c5c0b3; border-bottom:1px solid #c5c0b3; }
 .nba-corner,.nba-category { min-height:72px; display:grid; place-items:center; background:#e7e1d4; font-size:9px; font-weight:900; text-align:center; padding:6px; }
+.nba-category { grid-template-columns:auto 1fr auto; gap:5px; align-content:center; }
+.nba-category small { grid-column:1/-1; color:#ff6b35; font-size:6px; letter-spacing:.14em; }
+.nba-category span { grid-column:2; line-height:1.05; }
+.nba-category em { grid-column:3; width:15px; height:15px; display:grid; place-items:center; border:1px solid #aaa59a; border-radius:50%; color:#777; font-size:8px; font-style:normal; cursor:help; }
 .nba-row { display:contents; }
 .nba-team { min-height:112px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:#e7e1d4; border-left:4px solid; font-family:var(--font-display); font-weight:800; text-transform:uppercase; }
 .nba-team img { width:51px; height:51px; object-fit:contain; }
