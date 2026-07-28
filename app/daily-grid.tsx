@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { buildShareText, renderShareImage, type ShareMode } from "./share-card";
 import { dailyPuzzle, easternPuzzleDate, isValidPlayer, playerDatabase, playerOptions, teamLogo, validPlayers } from "./game-data";
 
 type CellState = { answer: string; status: "correct" | "wrong" } | null;
@@ -19,6 +20,8 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
   const [message, setMessage] = useState("Drag a player from the right-side pool into a square.");
   const [streak, setStreak] = useState(0);
   const [showPrevious, setShowPrevious] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [shareMode, setShareMode] = useState<ShareMode>("score");
 
   const previousPuzzle = useMemo(() => {
     const previous = new Date(`${dateKey}T12:00:00Z`);
@@ -117,16 +120,81 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
     if (playerCard) placePlayer(index, playerCard);
   }
 
-  async function share() {
-    const squares = cells.map((cell) => cell?.status === "correct" ? "🟩" : cell ? "🟥" : "⬜");
-    const text = `Gridiron Grid #${puzzle.number} — ${score}/9\n${squares.slice(0,3).join("")}\n${squares.slice(3,6).join("")}\n${squares.slice(6,9).join("")}\n🔥 ${streak} day streak\nhttps://gridirongrid.org/`;
+  const siteUrl =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : process.env.NEXT_PUBLIC_SITE_URL ?? "https://gridirongrid.org";
+
+  function sharePayload(mode: ShareMode) {
+    return buildShareText({
+      mode,
+      brand: "Gridiron Grid",
+      puzzleNumber: puzzle.number,
+      dateKey,
+      score,
+      streak,
+      siteUrl,
+      cells,
+    });
+  }
+
+  async function copyShare(mode: ShareMode) {
+    await navigator.clipboard.writeText(sharePayload(mode));
+    setMessage(
+      mode === "blank"
+        ? "Blank challenge card copied. Paste on X, Facebook, LinkedIn, or Instagram."
+        : mode === "answers"
+          ? "Answer card copied with your picks."
+          : "Score card copied (spoiler-free).",
+    );
+  }
+
+  async function downloadShareImage(mode: ShareMode) {
+    const blob = await renderShareImage({
+      mode,
+      brand: "Gridiron Grid",
+      puzzleNumber: puzzle.number,
+      dateKey,
+      score,
+      streak,
+      siteUrl,
+      cells,
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `gridiron-grid-${dateKey}-${mode}.png`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setMessage("Share image downloaded (1080×1350, good for Instagram/Facebook).");
+  }
+
+  async function nativeShare(mode: ShareMode) {
+    const text = sharePayload(mode);
     try {
-      if (navigator.share) await navigator.share({ title: "Gridiron Grid", text });
-      else {
-        await navigator.clipboard.writeText(text);
-        setMessage("Score copied to your clipboard.");
+      const blob = await renderShareImage({
+        mode,
+        brand: "Gridiron Grid",
+        puzzleNumber: puzzle.number,
+        dateKey,
+        score,
+        streak,
+        siteUrl,
+        cells,
+      });
+      const file = new File([blob], `gridiron-grid-${mode}.png`, { type: "image/png" });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title: "Gridiron Grid", text, files: [file] });
+        return;
       }
-    } catch {}
+    } catch {
+      // fall through to text-only share
+    }
+    if (navigator.share) {
+      await navigator.share({ title: "Gridiron Grid", text });
+      return;
+    }
+    await copyShare(mode);
   }
 
   return (
@@ -171,7 +239,18 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
                     }}
                     aria-label={`${team.name} and ${puzzle.categories[columnIndex].label}${cell ? `: ${cell.answer}` : ""}`}
                   >
-                    {cell ? <><span>{cell.status === "correct" ? "✓" : "×"}</span><small>{cell.answer}</small><em>REPLACE</em></> : <><b>+</b>{playerCard && <em>DROP</em>}</>}
+                    {cell ? (
+                      <>
+                        <span>{cell.status === "correct" ? "✓" : "×"}</span>
+                        <small>{cell.answer}</small>
+                        <em>REPLACE</em>
+                      </>
+                    ) : (
+                      <>
+                        <b className="cell-slot-number">{index + 1}</b>
+                        {playerCard && <em>DROP</em>}
+                      </>
+                    )}
                   </button>
                 );
               })}
@@ -213,8 +292,69 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
 
       <div className="game-footer">
         <div><span>{message}</span><small>{9 - guesses} guesses left · {playerDatabase.length.toLocaleString()} qualifying players indexed</small></div>
-        <button className="share-button" onClick={share}>Share result <span>↗</span></button>
+        <button className="share-button" onClick={() => setShowShare(true)}>
+          Share card <span>↗</span>
+        </button>
       </div>
+
+      {showShare && (
+        <div className="answer-overlay share-overlay" role="dialog" aria-modal="true" aria-label="Share your grid">
+          <button className="overlay-backdrop" onClick={() => setShowShare(false)} aria-label="Close share panel" />
+          <section className="answer-drawer share-drawer">
+            <div className="drawer-head">
+              <div>
+                <small>SHARE YOUR GRID</small>
+                <h2>Pick a card</h2>
+                <p>Blank challenge, spoiler-free score, or full answer card.</p>
+              </div>
+              <button onClick={() => setShowShare(false)} aria-label="Close">
+                ×
+              </button>
+            </div>
+
+            <div className="share-mode-tabs" role="tablist">
+              {(
+                [
+                  ["blank", "Blank grid", "Invite friends without spoilers"],
+                  ["score", "Score only", "Emoji grid + score (Wordle style)"],
+                  ["answers", "My answers", "Shows your player picks"],
+                ] as const
+              ).map(([mode, label, hint]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  role="tab"
+                  aria-selected={shareMode === mode}
+                  className={shareMode === mode ? "active" : ""}
+                  onClick={() => setShareMode(mode)}
+                >
+                  <strong>{label}</strong>
+                  <span>{hint}</span>
+                </button>
+              ))}
+            </div>
+
+            <pre className="share-preview" aria-label="Share preview">
+              {sharePayload(shareMode)}
+            </pre>
+
+            <div className="share-actions">
+              <button type="button" onClick={() => copyShare(shareMode)}>
+                Copy text
+              </button>
+              <button type="button" onClick={() => downloadShareImage(shareMode)}>
+                Download image
+              </button>
+              <button type="button" className="primary" onClick={() => nativeShare(shareMode)}>
+                Share to apps
+              </button>
+            </div>
+            <p className="drawer-note">
+              Tip: use <strong>Copy text</strong> for X and LinkedIn, <strong>Download image</strong> for Instagram and Facebook Stories/Posts.
+            </p>
+          </section>
+        </div>
+      )}
 
       {showPrevious && (
         <div className="answer-overlay" role="dialog" aria-modal="true" aria-label="Yesterday's answers">
