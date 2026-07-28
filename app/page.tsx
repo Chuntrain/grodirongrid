@@ -96,7 +96,7 @@ export default function Home() {
         </a>
         <nav aria-label="Game categories">
           <a className="active" href="#play">NFL Grid</a>
-          <a href="#more-games">NBA Grid</a>
+          <a href="/nba-grid/">NBA Grid</a>
           <a href="#more-games">MLB Grid</a>
         </nav>
         <a className="today-link" href="#play">Today&apos;s grid <span>↗</span></a>
@@ -243,7 +243,7 @@ export default function Home() {
           </div>
           <div className="game-links">
             <a href="#play"><span>🏈</span><div><small>FOOTBALL</small><strong>Red Zone</strong></div><b>↗</b></a>
-            <a href="#play"><span>🏀</span><div><small>BASKETBALL</small><strong>Hardwood Grid</strong></div><b>↗</b></a>
+            <a href="/nba-grid/"><span>🏀</span><div><small>BASKETBALL</small><strong>NBA Grid</strong></div><b>↗</b></a>
             <a href="#play"><span>⚾</span><div><small>BASEBALL</small><strong>Diamond Nine</strong></div><b>↗</b></a>
           </div>
         </section>

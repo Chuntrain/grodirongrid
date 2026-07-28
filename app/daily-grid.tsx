@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { dailyPuzzle, easternPuzzleDate, isValidPlayer, playerDatabase, playerOptions, teamLogo } from "./game-data";
+import { dailyPuzzle, easternPuzzleDate, isValidPlayer, playerDatabase, playerOptions, teamLogo, validPlayers } from "./game-data";
 
 type CellState = { answer: string; status: "correct" | "wrong" } | null;
 
@@ -18,6 +18,13 @@ export function DailyGrid() {
   const [playerCard, setPlayerCard] = useState("");
   const [message, setMessage] = useState("Drag a player from the right-side pool into a square.");
   const [streak, setStreak] = useState(0);
+  const [showPrevious, setShowPrevious] = useState(false);
+
+  const previousPuzzle = useMemo(() => {
+    const previous = new Date(`${dateKey}T12:00:00Z`);
+    previous.setUTCDate(previous.getUTCDate() - 1);
+    return dailyPuzzle(previous.toISOString().slice(0, 10));
+  }, [dateKey]);
 
   const playerDeck = useMemo(() => {
     const allPlayers = playerOptions(puzzle.teams.map((team) => team.id));
@@ -117,7 +124,10 @@ export function DailyGrid() {
     <div className="game-shell">
       <div className="game-meta">
         <div><span>GRID #{String(puzzle.number).padStart(3, "0")}</span><span>{dateKey} · 8 PM ET</span></div>
-        <div className="score"><span>SCORE</span><strong>{score}<i>/9</i></strong></div>
+        <div className="game-meta-actions">
+          <button onClick={() => setShowPrevious(true)}>Yesterday&apos;s answers</button>
+          <div className="score"><span>SCORE</span><strong>{score}<i>/9</i></strong></div>
+        </div>
       </div>
 
       <div className="game-play-area">
@@ -198,6 +208,33 @@ export function DailyGrid() {
         <div><span>{message}</span><small>{9 - guesses} guesses left · {playerDatabase.length.toLocaleString()} qualifying players indexed</small></div>
         <button className="share-button" onClick={share}>Share result <span>↗</span></button>
       </div>
+
+      {showPrevious && (
+        <div className="answer-overlay" role="dialog" aria-modal="true" aria-label="Yesterday's answers">
+          <button className="overlay-backdrop" onClick={() => setShowPrevious(false)} aria-label="Close answers" />
+          <section className="answer-drawer">
+            <div className="drawer-head">
+              <div><small>GRID #{String(previousPuzzle.number).padStart(3, "0")}</small><h2>Yesterday&apos;s answers</h2><p>{previousPuzzle.dateKey}</p></div>
+              <button onClick={() => setShowPrevious(false)} aria-label="Close">×</button>
+            </div>
+            <div className="previous-grid">
+              <div />
+              {previousPuzzle.categories.map((category) => <strong key={category.id}>{category.shortLabel}</strong>)}
+              {previousPuzzle.teams.map((team) => (
+                <div className="previous-row" key={team.id}>
+                  <div><img src={teamLogo(team.id)} alt="" /><span>{team.shortName}</span></div>
+                  {previousPuzzle.categories.map((category) => {
+                    const options = validPlayers(team.id, category.id);
+                    return <article key={category.id}><b>{options[0] ?? "No answer"}</b><small>{options.length} accepted</small></article>;
+                  })}
+                </div>
+              ))}
+            </div>
+            <p className="drawer-note">One example is shown per square. The count includes every accepted answer currently in the database.</p>
+            <a href="/archive/">Open puzzle archive →</a>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

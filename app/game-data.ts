@@ -1,3 +1,5 @@
+import rawPlayerDatabase from "./player-db.json";
+
 export type Team = {
   id: string;
   name: string;
@@ -126,6 +128,15 @@ export function isValidPlayer(name: string, teamId: string, categoryId: Category
   return answers[teamId][categoryId].some((candidate) => normalizeName(candidate) === normalized);
 }
 
+export function validPlayers(teamId: string, categoryId: Category["id"]) {
+  const names = new Set<string>();
+  for (const player of playerDatabase) {
+    if (player.teams.includes(teamId) && player[categoryId]) names.add(player.name);
+  }
+  answers[teamId][categoryId].forEach((name) => names.add(name));
+  return [...names].sort((a, b) => a.localeCompare(b));
+}
+
 export function playerOptions(teamIds: string[]) {
   const names = new Set<string>();
   for (const player of playerDatabase) {
@@ -176,4 +187,3 @@ export function dailyPuzzle(dateKey: string) {
   const number = Math.floor((new Date(`${dateKey}T00:00:00Z`).getTime() - new Date("2026-01-01T00:00:00Z").getTime()) / 86400000) + 1;
   return { dateKey, number, teams: selected, categories };
 }
-import rawPlayerDatabase from "./player-db.json";
