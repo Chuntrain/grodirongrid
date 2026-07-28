@@ -46,7 +46,8 @@ def team_id(value: str) -> str:
 def main():
     records = defaultdict(lambda: {
         "name": "", "teams": set(), "proBowl": False,
-        "superBowl": False, "rush1000": False,
+        "superBowl": False, "rush1000": False, "pass4000": False,
+        "receive1000": False, "sacks10": False,
     })
     player_names: dict[str, str] = {}
 
@@ -93,11 +94,16 @@ def main():
         url = f"https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_reg_{season}.csv"
         try:
             for row in rows(url):
-                try:
-                    rushing = float(row.get("rushing_yards") or 0)
-                except ValueError:
-                    rushing = 0
-                if rushing < 1000:
+                def number(key):
+                    try:
+                        return float(row.get(key) or 0)
+                    except ValueError:
+                        return 0
+                rushing = number("rushing_yards")
+                passing = number("passing_yards")
+                receiving = number("receiving_yards")
+                sacks = number("def_sacks")
+                if max(rushing / 1000, passing / 4000, receiving / 1000, sacks / 10) < 1:
                     continue
                 player_id = row.get("player_id", "")
                 name = (row.get("player_display_name") or row.get("player_name") or "").strip()
@@ -107,7 +113,10 @@ def main():
                 player_names[player_id] = name
                 record = records[player_id]
                 record["name"] = name
-                record["rush1000"] = True
+                record["rush1000"] = record["rush1000"] or rushing >= 1000
+                record["pass4000"] = record["pass4000"] or passing >= 4000
+                record["receive1000"] = record["receive1000"] or receiving >= 1000
+                record["sacks10"] = record["sacks10"] or sacks >= 10
                 if team in CURRENT_TEAMS:
                     record["teams"].add(team)
         except Exception as exc:
@@ -117,7 +126,7 @@ def main():
     for record in records.values():
         if not record["name"] or not record["teams"]:
             continue
-        if not (record["proBowl"] or record["superBowl"] or record["rush1000"]):
+        if not any(record[key] for key in ("proBowl","superBowl","rush1000","pass4000","receive1000","sacks10")):
             continue
         compact.append({
             "name": record["name"],
@@ -125,6 +134,9 @@ def main():
             "proBowl": record["proBowl"],
             "superBowl": record["superBowl"],
             "rush1000": record["rush1000"],
+            "pass4000": record["pass4000"],
+            "receive1000": record["receive1000"],
+            "sacks10": record["sacks10"],
         })
 
     compact.sort(key=lambda item: item["name"])

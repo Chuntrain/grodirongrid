@@ -45,7 +45,7 @@ export function DailyGrid() {
       if (candidate) chosen.add(normalize(candidate));
     }));
     for (const candidate of shuffled) {
-      if (chosen.size >= 18) break;
+      if (chosen.size >= 9) break;
       chosen.add(normalize(candidate));
     }
     const namesByKey = new Map(allPlayers.map((name) => [normalize(name), name]));
@@ -73,6 +73,7 @@ export function DailyGrid() {
   const finished = guesses === 9;
 
   useEffect(() => {
+    if (finished) setMessage("Grid submitted. The official answers will be published here tomorrow.");
     if (finished && score === 9) {
       const next = Math.max(1, streak);
       setStreak(next);

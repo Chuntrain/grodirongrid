@@ -266,6 +266,11 @@ footer > small { text-align: right; }
 .archive-answer-grid strong { font-family:var(--font-display); font-size:16px; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 .nba-page { background:#0d0d11; color:white; min-height:100vh; }
+.mlb-page .nba-hero { background:radial-gradient(circle at 15% 20%,#8f1b183b,transparent 32%),#071521; }
+.mlb-page .nba-hero h1 em { color:#e43a35; }
+.mlb-game .nba-category small,.mlb-game .nba-pool>button b { color:#e43a35; }
+.mlb-game .nba-row>button:hover { background:#fff0ed; box-shadow:inset 0 0 0 3px #e43a35; }
+.mlb-game .nba-pool>button:hover,.mlb-game .nba-pool>button.picked { border-color:#e43a35; background:#351e1e; }
 .nba-hero { padding:70px max(20px,calc((100vw - 1180px)/2)) 100px; background:radial-gradient(circle at 15% 20%,#5c2b1633,transparent 32%),#0d0d11; }
 .nba-hero > div:first-child { text-align:center; margin-bottom:45px; }
 .nba-hero h1 { font-family:var(--font-display); font-size:clamp(76px,10vw,130px); line-height:.8; letter-spacing:-.05em; text-transform:uppercase; margin:22px 0; }

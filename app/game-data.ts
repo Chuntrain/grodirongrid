@@ -11,7 +11,7 @@ export type Team = {
 };
 
 export type Category = {
-  id: "proBowl" | "superBowl" | "rush1000";
+  id: "proBowl" | "superBowl" | "rush1000" | "pass4000" | "receive1000" | "sacks10";
   label: string;
   shortLabel: string;
   description: string;
@@ -21,6 +21,9 @@ export const categories: Category[] = [
   { id: "proBowl", label: "Selected to a Pro Bowl", shortLabel: "Pro Bowl", description: "Was selected to at least one Pro Bowl during his career." },
   { id: "superBowl", label: "Won a Super Bowl", shortLabel: "Super Bowl Champ", description: "Was on the active roster of a Super Bowl champion." },
   { id: "rush1000", label: "1,000+ rushing yards", shortLabel: "1,000 Rush Yds", description: "Recorded at least 1,000 rushing yards in a single regular season." },
+  { id: "pass4000", label: "4,000+ passing yards", shortLabel: "4,000 Pass Yds", description: "Recorded at least 4,000 passing yards in a single regular season." },
+  { id: "receive1000", label: "1,000+ receiving yards", shortLabel: "1,000 Rec Yds", description: "Recorded at least 1,000 receiving yards in a single regular season." },
+  { id: "sacks10", label: "10+ sacks", shortLabel: "10+ Sacks", description: "Recorded at least 10 defensive sacks in a single regular season." },
 ];
 
 export const teams: Team[] = [
@@ -58,7 +61,7 @@ export const teams: Team[] = [
   { id:"WSH",name:"Washington Commanders",shortName:"Commanders",conference:"NFC",division:"East",color:"#5a1414",accent:"#ffb612" },
 ];
 
-type AnswerSet = Record<Category["id"], string[]>;
+type AnswerSet = Partial<Record<Category["id"], string[]>>;
 
 export type PlayerRecord = {
   name: string;
@@ -66,6 +69,9 @@ export type PlayerRecord = {
   proBowl: boolean;
   superBowl: boolean;
   rush1000: boolean;
+  pass4000: boolean;
+  receive1000: boolean;
+  sacks10: boolean;
 };
 
 export const playerDatabase = rawPlayerDatabase as PlayerRecord[];
@@ -125,7 +131,7 @@ export function isValidPlayer(name: string, teamId: string, categoryId: Category
     (player) => player.teams.includes(teamId) && player[categoryId],
   );
   if (databaseMatch) return true;
-  return answers[teamId][categoryId].some((candidate) => normalizeName(candidate) === normalized);
+  return (answers[teamId][categoryId] ?? []).some((candidate) => normalizeName(candidate) === normalized);
 }
 
 export function validPlayers(teamId: string, categoryId: Category["id"]) {
@@ -133,7 +139,7 @@ export function validPlayers(teamId: string, categoryId: Category["id"]) {
   for (const player of playerDatabase) {
     if (player.teams.includes(teamId) && player[categoryId]) names.add(player.name);
   }
-  answers[teamId][categoryId].forEach((name) => names.add(name));
+  (answers[teamId][categoryId] ?? []).forEach((name) => names.add(name));
   return [...names].sort((a, b) => a.localeCompare(b));
 }
 
@@ -143,7 +149,7 @@ export function playerOptions(teamIds: string[]) {
     if (player.teams.some((team) => teamIds.includes(team))) names.add(player.name);
   }
   for (const teamId of teamIds) {
-    for (const category of categories) answers[teamId][category.id].forEach((name) => names.add(name));
+    for (const category of categories) (answers[teamId][category.id] ?? []).forEach((name) => names.add(name));
   }
   return [...names].sort((a, b) => a.localeCompare(b));
 }
@@ -177,7 +183,13 @@ export function easternPuzzleDate(date = new Date()) {
 
 export function dailyPuzzle(dateKey: string) {
   let seed = hashDate(`gridiron-grid:${dateKey}`);
-  const pool = [...teams];
+  const categoryPool = [...categories];
+  const selectedCategories: Category[] = [];
+  while (selectedCategories.length < 3) {
+    seed = Math.imul(seed ^ (seed >>> 15), 2246822519) >>> 0;
+    selectedCategories.push(categoryPool.splice(seed % categoryPool.length, 1)[0]);
+  }
+  const pool = teams.filter((team) => selectedCategories.every((category) => validPlayers(team.id, category.id).length > 0));
   const selected: Team[] = [];
   while (selected.length < 3) {
     seed = Math.imul(seed ^ (seed >>> 15), 2246822519) >>> 0;
@@ -185,5 +197,5 @@ export function dailyPuzzle(dateKey: string) {
     selected.push(pool.splice(index, 1)[0]);
   }
   const number = Math.floor((new Date(`${dateKey}T00:00:00Z`).getTime() - new Date("2026-01-01T00:00:00Z").getTime()) / 86400000) + 1;
-  return { dateKey, number, teams: selected, categories };
+  return { dateKey, number, teams: selected, categories: selectedCategories };
 }

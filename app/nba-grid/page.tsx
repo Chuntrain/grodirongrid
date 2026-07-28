@@ -12,7 +12,7 @@ export default function NbaGridPage() {
     <>
       <header className="site-header">
         <a className="brand" href="/"><span className="brand-ball">G</span><span>GRIDIRON<span>GRID</span></span></a>
-        <nav aria-label="Game categories"><a href="/">NFL Grid</a><a className="active" href="/nba-grid/">NBA Grid</a><a href="#more">MLB Grid</a></nav>
+        <nav aria-label="Game categories"><a href="/">NFL Grid</a><a className="active" href="/nba-grid/">NBA Grid</a><a href="/mlb-grid/">MLB Grid</a></nav>
         <a className="today-link" href="/archive/">Archive <span>↗</span></a>
       </header>
       <main className="nba-page">
@@ -22,7 +22,7 @@ export default function NbaGridPage() {
         </section>
         <section className="sport-next" id="more">
           <p className="section-kicker">MORE LEAGUES</p><h2>One grid. Every sport.</h2>
-          <div><a href="/">🏈 <strong>NFL Grid</strong><span>Play now →</span></a><a href="/nba-grid/">🏀 <strong>NBA Grid</strong><span>Playing</span></a><a href="#"><span>⚾</span><strong>MLB Grid</strong><span>Coming next →</span></a></div>
+          <div><a href="/">🏈 <strong>NFL Grid</strong><span>Play now →</span></a><a href="/nba-grid/">🏀 <strong>NBA Grid</strong><span>Playing</span></a><a href="/mlb-grid/"><span>⚾</span><strong>MLB Grid</strong><span>Play now →</span></a></div>
         </section>
       </main>
     </>
