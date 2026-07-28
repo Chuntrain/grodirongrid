@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { dailyPuzzle, easternPuzzleDate, teamLogo, validPlayers } from "../game-data";
 
 export function PuzzleArchive() {
@@ -13,6 +13,11 @@ export function PuzzleArchive() {
       return dailyPuzzle(day.toISOString().slice(0, 10));
     });
   }, []);
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("answers");
+    const index = puzzles.findIndex((puzzle) => puzzle.dateKey === requested);
+    if (index >= 0) setOpen(index);
+  }, [puzzles]);
 
   return (
     <main className="archive-page">
@@ -27,7 +32,7 @@ export function PuzzleArchive() {
       </section>
       <section className="archive-list">
         {puzzles.map((puzzle, index) => (
-          <article className="archive-item" key={puzzle.dateKey}>
+          <article className="archive-item" key={puzzle.dateKey} id={puzzle.dateKey}>
             <button onClick={() => setOpen(open === index ? null : index)}>
               <span>#{String(puzzle.number).padStart(3, "0")}</span>
               <strong>{puzzle.dateKey}</strong>

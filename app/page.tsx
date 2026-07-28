@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DailyGrid } from "./daily-grid";
 import { teams, teamLogo } from "./game-data";
+import { Past14Days } from "./past-14-days";
 
 const faq = [
   {
@@ -111,6 +112,8 @@ export default function Home() {
           </p>
           <DailyGrid />
         </section>
+
+        <Past14Days sport="NFL" />
 
         <section className="ticker" aria-label="Game features">
           <span>FRESH GRID DAILY</span><i>✦</i>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { NbaGrid } from "./nba-grid";
 import { SportSeoContent } from "../sport-content";
+import { Past14Days } from "../past-14-days";
 
 export const metadata: Metadata = {
   title: "NBA Grid – Daily Basketball Player Puzzle",
@@ -21,6 +22,7 @@ export default function NbaGridPage() {
           <div><p className="eyebrow"><span /> DAILY BASKETBALL PUZZLE</p><h1>NBA <em>Grid</em></h1><p>Drag the right player into every square. Nine picks. No repeats.</p></div>
           <NbaGrid />
         </section>
+        <Past14Days sport="NBA" />
         <SportSeoContent sport="NBA" />
         <section className="sport-next" id="more">
           <p className="section-kicker">MORE LEAGUES</p><h2>One grid. Every sport.</h2>
