@@ -74,18 +74,18 @@ export function buildShareText(input: ShareInput): string {
   const header = `${brand} #${String(puzzleNumber).padStart(3, "0")} · ${dateKey}`;
   const hook = viralHook(mode, score);
   const reaction = scoreReaction(score);
+  const linkLine = `Play + answers → ${siteUrl}`;
 
   if (mode === "blank") {
     return [
       header,
       hook,
+      linkLine,
       "",
       "Teams ↓ / feats →",
       ...board,
       "",
-      "Play free → drop your score in the comments",
-      siteUrl,
-      "",
+      "Fill all 9 and drop your score in the comments",
       "#GridironGrid #DailyTrivia #AmIRight",
     ].join("\n");
   }
@@ -94,6 +94,7 @@ export function buildShareText(input: ShareInput): string {
   return [
     header,
     hook,
+    linkLine,
     streak > 0 ? `Streak: ${streak} day${streak === 1 ? "" : "s"} 🔥` : "",
     "",
     "Teams ↓ / feats →",
@@ -102,7 +103,6 @@ export function buildShareText(input: ShareInput): string {
     `Score vibe: ${reaction.emoji} ${reaction.label}`,
     "🟨 = locked picks · official answers tomorrow",
     "",
-    `Play free → ${siteUrl}`,
     "#GridironGrid #AmIRight",
   ]
     .filter((line, index, arr) => line !== "" || arr[index - 1] !== "")
@@ -261,38 +261,49 @@ export async function renderShareImage(input: ShareInput): Promise<Blob> {
   });
 }
 
-/** Copy the share card image (+ text) to the clipboard. No download, no answer spoilers. */
+/** Copy share card image + text link together when the browser allows it. */
 export async function shareCardToClipboard(
   input: ShareInput,
   _filePrefix?: string,
-): Promise<"image" | "text"> {
+): Promise<"both" | "image" | "text"> {
   // Never share actual pick names — score/blank cells only.
   const safeInput: ShareInput =
     input.mode === "answers" ? { ...input, mode: "score" } : input;
   const text = buildShareText(safeInput);
   const blob = await renderShareImage(safeInput);
+  const textBlob = new Blob([text], { type: "text/plain" });
 
   if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
-    // Prefer image + text together.
+    // Chrome / Edge / Safari: image + text in one write (Promises help Safari).
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "image/png": Promise.resolve(blob),
+          "text/plain": Promise.resolve(textBlob),
+        }),
+      ]);
+      return "both";
+    } catch {
+      // Fall through.
+    }
     try {
       await navigator.clipboard.write([
         new ClipboardItem({
           "image/png": blob,
-          "text/plain": new Blob([text], { type: "text/plain" }),
+          "text/plain": textBlob,
         }),
       ]);
-      return "image";
+      return "both";
     } catch {
-      // Some browsers reject mixed payloads.
+      // Fall through.
     }
-    // Image alone (Safari often wants a Promise).
+    // Image-only — do NOT call writeText afterward (it replaces the image).
     try {
       await navigator.clipboard.write([
         new ClipboardItem({
           "image/png": Promise.resolve(blob),
         }),
       ]);
-      await navigator.clipboard.writeText(text).catch(() => undefined);
       return "image";
     } catch {
       // Fall through to text-only.

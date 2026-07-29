@@ -37,11 +37,13 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
   const [selected, setSelected] = useState<number | null>(null);
   const [playerCard, setPlayerCard] = useState("");
   const [message, setMessage] = useState(
-    "Lock 9 picks. No right/wrong until you check — official answers drop tomorrow.",
+    "Lock 9 picks. No right/wrong until you check — share to unlock official answers.",
   );
   const [streak, setStreak] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  const [answersUnlocked, setAnswersUnlocked] = useState(false);
   const [showPrevious, setShowPrevious] = useState(false);
+  const [showAnswers, setShowAnswers] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [shareMode, setShareMode] = useState<ShareMode>("score");
   const [shareBusy, setShareBusy] = useState(false);
@@ -91,8 +93,10 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
     const stored = window.localStorage.getItem(storageKey);
     const savedStreak = Number(window.localStorage.getItem("gridiron-grid-streak") || 0);
     const savedReveal = window.localStorage.getItem(revealKey) === "1";
+    const savedAnswers = window.localStorage.getItem(`${revealKey}:answers`) === "1";
     if (savedStreak) setStreak(savedStreak);
     if (savedReveal) setRevealed(true);
+    if (savedAnswers) setAnswersUnlocked(true);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
@@ -114,7 +118,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
 
   useEffect(() => {
     if (finished && !revealed) {
-      setMessage("Board locked. Hit Check the result for your score vibe — answers publish tomorrow.");
+      setMessage("Board locked. Hit Check the result for your score vibe — share to unlock answers.");
     }
   }, [finished, revealed]);
 
@@ -135,7 +139,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
     const next = [...cells];
     next[index] = { answer: player, status: valid ? "correct" : "wrong" };
     setCells(next);
-    setMessage(`${player} locked in square ${index + 1}. No spoilers — answers drop tomorrow.`);
+    setMessage(`${player} locked in square ${index + 1}. No spoilers until you share.`);
     setPlayerCard("");
     setSelected(null);
   }
@@ -155,20 +159,36 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
     if (playerCard) placePlayer(index, playerCard);
   }
 
+  function unlockResult() {
+    if (!revealed) {
+      setRevealed(true);
+      window.localStorage.setItem(revealKey, "1");
+      if (score === 9) {
+        const next = streak + 1;
+        setStreak(next);
+        window.localStorage.setItem("gridiron-grid-streak", String(next));
+      }
+    }
+  }
+
+  function unlockAnswers() {
+    unlockResult();
+    setAnswersUnlocked(true);
+    window.localStorage.setItem(`${revealKey}:answers`, "1");
+  }
+
   function checkResult() {
     if (!finished) return;
-    setRevealed(true);
-    window.localStorage.setItem(revealKey, "1");
-    if (score === 9) {
-      const next = streak + 1;
-      setStreak(next);
-      window.localStorage.setItem("gridiron-grid-streak", String(next));
-    }
+    unlockResult();
     setMessage(
-      `${reaction.emoji} ${score}/9 · ${reaction.label}. Official answers publish tomorrow — share your vibe.`,
+      answersUnlocked
+        ? `${reaction.emoji} ${score}/9 · ${reaction.label}.`
+        : `${reaction.emoji} ${score}/9 · ${reaction.label}. Share your card to unlock official answers.`,
     );
-    setShareMode("score");
-    setShowShare(true);
+    if (!answersUnlocked) {
+      setShareMode("score");
+      setShowShare(true);
+    }
   }
 
   const siteUrl =
@@ -182,7 +202,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
       brand: "Gridiron Grid",
       puzzleNumber: puzzle.number,
       dateKey,
-      score: revealed ? score : 0,
+      score: revealed || finished ? score : 0,
       streak,
       siteUrl,
       cells,
@@ -195,17 +215,26 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
     setShareBusy(true);
     try {
       const kind = await shareCardToClipboard(shareInput(mode));
-      setMessage(
-        kind === "image"
-          ? "Share card copied — paste into X, Instagram, Facebook, LinkedIn…"
-          : "Share text copied — paste anywhere. (Image copy needs clipboard permission.)",
-      );
+      unlockAnswers();
       setShowShare(false);
+      setShowAnswers(true);
+      setMessage(
+        kind === "both"
+          ? "Card + link copied. Here are today's official answers."
+          : kind === "image"
+            ? "Card image copied. Here are today's official answers."
+            : "Share text + link copied. Here are today's official answers.",
+      );
     } catch {
       setMessage("Share failed — try again or allow clipboard access.");
     } finally {
       setShareBusy(false);
     }
+  }
+
+  async function shareAndGetAnswer() {
+    const mode: ShareMode = finished || revealed ? "score" : "blank";
+    await oneClickShare(mode);
   }
 
   return (
@@ -258,7 +287,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
                 return (
                   <button
                     key={index}
-                    className={`cell drop-cell ${selected === index ? "selected" : ""} ${playerCard ? "drop-ready" : ""} ${cell ? "filled-locked" : ""}`}
+                    className={`cell drop-cell ${selected === index ? "selected" : ""} ${playerCard ? "drop-ready" : ""} ${cell ? "filled-locked" : ""} ${revealed && cell ? cell.status : ""}`}
                     onClick={() => handleCellClick(index)}
                     onDragOver={(event) => {
                       event.preventDefault();
@@ -327,7 +356,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
           <p>
             Playing hides right/wrong
             <br />
-            Official answers tomorrow
+            Share to unlock answers
             <br />
             Tap a locked name to swap
           </p>
@@ -338,7 +367,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
         <div className="result-banner">
           <div>
             <strong>Board complete</strong>
-            <span>Check your score vibe. Per-square answers publish tomorrow.</span>
+            <span>Check your score vibe, then share to unlock official answers.</span>
           </div>
           <button type="button" onClick={checkResult}>
             Check the result
@@ -355,10 +384,18 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
             <strong>
               {score}/9 · {reaction.label}
             </strong>
-            <span>Am I right?? Official answers drop tomorrow — share your card.</span>
+            <span>
+              {answersUnlocked
+                ? "Answers unlocked. Review the official picks anytime."
+                : "Share your card to unlock today's official answers."}
+            </span>
           </div>
-          <button type="button" onClick={() => setShowShare(true)}>
-            Share now
+          <button
+            type="button"
+            onClick={() => (answersUnlocked ? setShowAnswers(true) : shareAndGetAnswer())}
+            disabled={shareBusy}
+          >
+            {answersUnlocked ? "View answers" : shareBusy ? "Sharing…" : "Share & get answers"}
           </button>
         </div>
       )}
@@ -370,8 +407,8 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
             {9 - guesses} open squares · {playerDatabase.length.toLocaleString()} players indexed
           </small>
         </div>
-        <button className="share-button" onClick={() => setShowShare(true)}>
-          Share card <span>↗</span>
+        <button className="share-button" disabled={shareBusy} onClick={() => shareAndGetAnswer()}>
+          {shareBusy ? "Sharing…" : "Share card and get answer"} <span>↗</span>
         </button>
       </div>
 
@@ -382,8 +419,8 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
             <div className="drawer-head">
               <div>
                 <small>ONE-CLICK SHARE</small>
-                <h2>Copy card</h2>
-                <p>Copies the card image to your clipboard — paste into X, IG, FB, LinkedIn. No download, no spoilers.</p>
+                <h2>Copy card + link</h2>
+                <p>Copies the card image and a play link to your clipboard — paste into X, IG, FB, LinkedIn.</p>
               </div>
               <button onClick={() => setShowShare(false)} aria-label="Close">
                 ×
@@ -423,12 +460,70 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
                 disabled={shareBusy || (shareMode === "score" && !revealed)}
                 onClick={() => oneClickShare(shareMode === "score" && !revealed ? "blank" : shareMode)}
               >
-                {shareBusy ? "Preparing…" : "Copy card to clipboard"}
+                {shareBusy ? "Preparing…" : "Copy card + link"}
               </button>
             </div>
             <p className="drawer-note">
-              No names, no green/red spoilers. Score uses 😭 😕 😐 🙂 😄 vibes. Answers publish tomorrow.
+              No names on the shared card. After you copy, official answers unlock here.
             </p>
+          </section>
+        </div>
+      )}
+
+      {showAnswers && (
+        <div className="answer-overlay" role="dialog" aria-modal="true" aria-label="Today's answers">
+          <button className="overlay-backdrop" onClick={() => setShowAnswers(false)} aria-label="Close answers" />
+          <section className="answer-drawer">
+            <div className="drawer-head">
+              <div>
+                <small>GRID #{String(puzzle.number).padStart(3, "0")}</small>
+                <h2>Today&apos;s answers</h2>
+                <p>
+                  {dateKey} · your score {score}/9 {reaction.emoji}
+                </p>
+              </div>
+              <button onClick={() => setShowAnswers(false)} aria-label="Close">
+                ×
+              </button>
+            </div>
+            <div className="previous-grid">
+              <div />
+              {puzzle.categories.map((category) => (
+                <strong key={category.id}>{category.shortLabel}</strong>
+              ))}
+              {puzzle.teams.map((team, rowIndex) => (
+                <div className="previous-row" key={team.id}>
+                  <div>
+                    <img src={teamLogo(team.id)} alt="" />
+                    <span>{team.shortName}</span>
+                  </div>
+                  {puzzle.categories.map((category, columnIndex) => {
+                    const options = validPlayers(team.id, category.id);
+                    const yours = cells[rowIndex * 3 + columnIndex];
+                    const yoursOk = yours?.status === "correct";
+                    return (
+                      <article
+                        key={category.id}
+                        className={yours ? (yoursOk ? "yours-correct" : "yours-wrong") : undefined}
+                      >
+                        <b>{options[0] ?? "No answer"}</b>
+                        <small>{options.length} accepted</small>
+                        {yours && (
+                          <span className="your-pick">
+                            You: {yours.answer}
+                            {yoursOk ? " ✓" : " ✕"}
+                          </span>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            <p className="drawer-note">
+              One accepted example is shown per square. Green/red marks how your locked pick compared.
+            </p>
+            <a href="/archive/">Open puzzle archive →</a>
           </section>
         </div>
       )}
