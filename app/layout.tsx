@@ -42,18 +42,31 @@ export const metadata: Metadata = {
     siteName: "Gridiron Grid",
     title: "Gridiron Grid - Daily NFL Puzzle",
     description: "Nine squares. Nine guesses. A fresh NFL puzzle every day.",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Gridiron Grid daily football puzzle" }],
+    images: [
+      {
+        url: "/og.png?v=3",
+        width: 1200,
+        height: 630,
+        alt: "Gridiron Grid daily football puzzle",
+        type: "image/png",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Gridiron Grid - Daily NFL Puzzle",
     description: "Nine squares. Nine guesses. A fresh NFL puzzle every day.",
-    images: ["/og.png"],
+    images: ["/og.png?v=3"],
   },
   icons: {
-    icon: "/logo.svg?v=2",
-    shortcut: "/logo.svg?v=2",
-    apple: "/logo.svg?v=2",
+    icon: [
+      { url: "/favicon.ico?v=3", sizes: "any" },
+      { url: "/icon-48.png?v=3", sizes: "48x48", type: "image/png" },
+      { url: "/icon-192.png?v=3", sizes: "192x192", type: "image/png" },
+      { url: "/favicon.svg?v=3", type: "image/svg+xml" },
+    ],
+    shortcut: "/favicon.ico?v=3",
+    apple: [{ url: "/apple-touch-icon.png?v=3", sizes: "180x180", type: "image/png" }],
   },
 };
 

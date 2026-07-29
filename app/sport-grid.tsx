@@ -5,7 +5,7 @@ import { easternPuzzleDate } from "./game-data";
 import {
   buildShareText,
   scoreReaction,
-  shareToClipboardAndDownload,
+  shareCardToClipboard,
   type ShareMode,
 } from "./share-card";
 
@@ -190,11 +190,12 @@ export function SportDailyGrid({
   async function oneClickShare(mode: ShareMode) {
     setShareBusy(true);
     try {
-      await shareToClipboardAndDownload(
-        shareInput(mode),
-        `${sport.toLowerCase()}-grid-${dateKey}`,
+      const kind = await shareCardToClipboard(shareInput(mode));
+      setMessage(
+        kind === "image"
+          ? "Share card copied — paste into X, Instagram, Facebook, LinkedIn…"
+          : "Share text copied — paste anywhere. (Image copy needs clipboard permission.)",
       );
-      setMessage("Copied to clipboard + image downloaded. Paste into X, Instagram, Facebook, LinkedIn…");
       setShowShare(false);
     } catch {
       setMessage("Share failed — try again or allow clipboard access.");
@@ -386,8 +387,8 @@ export function SportDailyGrid({
             <div className="drawer-head">
               <div>
                 <small>ONE-CLICK SHARE</small>
-                <h2>Copy + download</h2>
-                <p>Text goes to clipboard and the image downloads — paste into X, IG, FB, LinkedIn.</p>
+                <h2>Copy card</h2>
+                <p>Copies the card image to your clipboard — paste into X, IG, FB, LinkedIn. No download, no spoilers.</p>
               </div>
               <button onClick={() => setShowShare(false)} aria-label="Close">
                 ×
@@ -402,7 +403,6 @@ export function SportDailyGrid({
                     "My score vibe",
                     revealed ? `${reaction.emoji} ${score}/9 · Am I right?` : "Check the result first",
                   ],
-                  ["answers", "My locked picks", "Names only · answers tomorrow"],
                 ] as const
               ).map(([mode, label, hint]) => (
                 <button
@@ -431,11 +431,11 @@ export function SportDailyGrid({
                   oneClickShare(shareMode === "score" && !revealed ? "blank" : shareMode)
                 }
               >
-                {shareBusy ? "Preparing…" : "Copy text + download image"}
+                {shareBusy ? "Preparing…" : "Copy card to clipboard"}
               </button>
             </div>
             <p className="drawer-note">
-              No green/red spoilers. Score uses 😭 😕 😐 🙂 😄 vibes. Answers publish tomorrow.
+              No names, no green/red spoilers. Score uses 😭 😕 😐 🙂 😄 vibes. Answers publish tomorrow.
             </p>
           </section>
         </div>

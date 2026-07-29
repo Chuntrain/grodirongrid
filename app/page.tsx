@@ -51,7 +51,8 @@ export default function Home() {
       "@type": "Organization",
       name: "Gridiron Grid",
       url: siteUrl,
-      logo: `${siteUrl}/logo.svg`,
+      logo: `${siteUrl}/logo.png`,
+      image: `${siteUrl}/og.png`,
     },
     {
       "@context": "https://schema.org",
@@ -66,6 +67,8 @@ export default function Home() {
       isAccessibleForFree: true,
       inLanguage: "en-US",
       url: `${siteUrl}/`,
+      image: `${siteUrl}/og.png`,
+      logo: `${siteUrl}/logo.png`,
     },
     {
       "@context": "https://schema.org",

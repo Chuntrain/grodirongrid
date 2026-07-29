@@ -45,8 +45,8 @@ Set these before production deploy:
 
 The app now includes:
 
-- site logo at `public/logo.svg`
-- metadata verification tag wiring in `app/layout.tsx`
+- brand mark assets: `public/favicon.ico`, `public/icon-48.png`, `public/logo.png`, `public/og.png`
+- metadata icons + Open Graph image wiring in `app/layout.tsx`
 - `robots.txt` via `app/robots.ts`
 - `sitemap.xml` via `app/sitemap.ts`
 

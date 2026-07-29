@@ -61,7 +61,8 @@ function viralHook(mode: ShareMode, score: number): string {
     return "Can you fill all 9 before answers drop tomorrow?";
   }
   if (mode === "answers") {
-    return `My locked picks ${reaction.emoji} — am I right?? Answers tomorrow.`;
+    // Treated like score for sharing — never leak pick names.
+    return `I got ${score}/9 ${reaction.emoji} — am I right though?? Official answers drop tomorrow.`;
   }
   return `I got ${score}/9 ${reaction.emoji} — am I right though?? Official answers drop tomorrow.`;
 }
@@ -89,32 +90,7 @@ export function buildShareText(input: ShareInput): string {
     ].join("\n");
   }
 
-  if (mode === "answers") {
-    const picks = cells
-      .map((cell, index) => {
-        if (!cell) return `${index + 1}. —`;
-        const team = teams[Math.floor(index / 3)];
-        const feat = categories[index % 3];
-        return `${index + 1}. ${team} × ${feat}: ${cell.answer}`;
-      })
-      .join("\n");
-
-    return [
-      header,
-      hook,
-      `Reaction: ${reaction.emoji} ${reaction.label} (${score}/9)`,
-      "",
-      "Teams ↓ / feats →",
-      ...board,
-      "",
-      "My locked picks (no spoilers — check tomorrow):",
-      picks,
-      "",
-      `Play: ${siteUrl}`,
-      "#GridironGrid #AmIRight",
-    ].join("\n");
-  }
-
+  // "answers" mode used to list pick names — that spoils the board. Fall through to score share.
   return [
     header,
     hook,
@@ -285,17 +261,52 @@ export async function renderShareImage(input: ShareInput): Promise<Blob> {
   });
 }
 
+/** Copy the share card image (+ text) to the clipboard. No download, no answer spoilers. */
+export async function shareCardToClipboard(
+  input: ShareInput,
+  _filePrefix?: string,
+): Promise<"image" | "text"> {
+  // Never share actual pick names — score/blank cells only.
+  const safeInput: ShareInput =
+    input.mode === "answers" ? { ...input, mode: "score" } : input;
+  const text = buildShareText(safeInput);
+  const blob = await renderShareImage(safeInput);
+
+  if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+    // Prefer image + text together.
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "image/png": blob,
+          "text/plain": new Blob([text], { type: "text/plain" }),
+        }),
+      ]);
+      return "image";
+    } catch {
+      // Some browsers reject mixed payloads.
+    }
+    // Image alone (Safari often wants a Promise).
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "image/png": Promise.resolve(blob),
+        }),
+      ]);
+      await navigator.clipboard.writeText(text).catch(() => undefined);
+      return "image";
+    } catch {
+      // Fall through to text-only.
+    }
+  }
+
+  await navigator.clipboard.writeText(text);
+  return "text";
+}
+
+/** @deprecated Use shareCardToClipboard — kept for any stale imports. */
 export async function shareToClipboardAndDownload(
   input: ShareInput,
   filePrefix: string,
 ): Promise<void> {
-  const text = buildShareText(input);
-  await navigator.clipboard.writeText(text);
-  const blob = await renderShareImage(input);
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `${filePrefix}-${input.mode}.png`;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  await shareCardToClipboard(input, filePrefix);
 }

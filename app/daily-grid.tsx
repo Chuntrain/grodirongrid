@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   buildShareText,
   scoreReaction,
-  shareToClipboardAndDownload,
+  shareCardToClipboard,
   type ShareMode,
 } from "./share-card";
 import {
@@ -194,9 +194,12 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
   async function oneClickShare(mode: ShareMode) {
     setShareBusy(true);
     try {
-      const input = shareInput(mode);
-      await shareToClipboardAndDownload(input, `gridiron-grid-${dateKey}`);
-      setMessage("Copied to clipboard + image downloaded. Paste into X, Instagram, Facebook, LinkedIn…");
+      const kind = await shareCardToClipboard(shareInput(mode));
+      setMessage(
+        kind === "image"
+          ? "Share card copied — paste into X, Instagram, Facebook, LinkedIn…"
+          : "Share text copied — paste anywhere. (Image copy needs clipboard permission.)",
+      );
       setShowShare(false);
     } catch {
       setMessage("Share failed — try again or allow clipboard access.");
@@ -379,8 +382,8 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
             <div className="drawer-head">
               <div>
                 <small>ONE-CLICK SHARE</small>
-                <h2>Copy + download</h2>
-                <p>Text goes to clipboard and the image downloads — paste into X, IG, FB, LinkedIn.</p>
+                <h2>Copy card</h2>
+                <p>Copies the card image to your clipboard — paste into X, IG, FB, LinkedIn. No download, no spoilers.</p>
               </div>
               <button onClick={() => setShowShare(false)} aria-label="Close">
                 ×
@@ -392,7 +395,6 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
                 [
                   ["blank", "Blank challenge", "Axes only — dare your friends"],
                   ["score", "My score vibe", revealed ? `${reaction.emoji} ${score}/9 · Am I right?` : "Check the result first for your vibe"],
-                  ["answers", "My locked picks", "Names only · answers tomorrow"],
                 ] as const
               ).map(([mode, label, hint]) => (
                 <button
@@ -421,11 +423,11 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
                 disabled={shareBusy || (shareMode === "score" && !revealed)}
                 onClick={() => oneClickShare(shareMode === "score" && !revealed ? "blank" : shareMode)}
               >
-                {shareBusy ? "Preparing…" : "Copy text + download image"}
+                {shareBusy ? "Preparing…" : "Copy card to clipboard"}
               </button>
             </div>
             <p className="drawer-note">
-              No green/red spoilers. Score uses 😭 😕 😐 🙂 😄 vibes. Answers publish tomorrow.
+              No names, no green/red spoilers. Score uses 😭 😕 😐 🙂 😄 vibes. Answers publish tomorrow.
             </p>
           </section>
         </div>
