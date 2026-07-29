@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { easternPuzzleDate } from "./game-data";
-import { buildShareText, renderShareImage, type ShareMode } from "./share-card";
+import {
+  buildShareText,
+  scoreReaction,
+  shareToClipboardAndDownload,
+  type ShareMode,
+} from "./share-card";
 
 export type SportBoard = {
   teams: { id: string; name: string; color: string; accent?: string }[];
@@ -55,16 +60,21 @@ export function SportDailyGrid({
   const board = useMemo(() => pickBoard(dateKey, boards), [boards, dateKey, pickBoard]);
   const puzzleNumber = useMemo(() => puzzleNumberFor(dateKey), [dateKey]);
   const storageKey = `gridiron-${sport.toLowerCase()}:${dateKey}`;
+  const revealKey = `${storageKey}:revealed`;
   const streakKey = `gridiron-${sport.toLowerCase()}-streak`;
 
   const [cells, setCells] = useState<CellState[]>(Array(9).fill(null));
   const [selected, setSelected] = useState<number | null>(null);
   const [playerCard, setPlayerCard] = useState("");
-  const [message, setMessage] = useState("Drag a player from the right-side pool into a square.");
+  const [message, setMessage] = useState(
+    "Lock 9 picks. No right/wrong until you check — official answers drop tomorrow.",
+  );
   const [streak, setStreak] = useState(0);
+  const [revealed, setRevealed] = useState(false);
   const [showPrevious, setShowPrevious] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [shareMode, setShareMode] = useState<ShareMode>("score");
+  const [shareBusy, setShareBusy] = useState(false);
 
   const previous = useMemo(() => {
     const day = new Date(`${dateKey}T12:00:00Z`);
@@ -76,16 +86,18 @@ export function SportDailyGrid({
   useEffect(() => {
     const stored = window.localStorage.getItem(storageKey);
     const savedStreak = Number(window.localStorage.getItem(streakKey) || 0);
+    const savedReveal = window.localStorage.getItem(revealKey) === "1";
     if (savedStreak) setStreak(savedStreak);
+    if (savedReveal) setRevealed(true);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length === 9) setCells(parsed);
       } catch {
-        // ignore bad local saves
+        // ignore
       }
     }
-  }, [storageKey, streakKey]);
+  }, [storageKey, streakKey, revealKey]);
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(cells));
@@ -94,19 +106,22 @@ export function SportDailyGrid({
   const guesses = cells.filter(Boolean).length;
   const score = cells.filter((cell) => cell?.status === "correct").length;
   const finished = guesses === 9;
+  const reaction = scoreReaction(score);
 
   useEffect(() => {
-    if (finished) setMessage("Grid submitted. The official answers will be published here tomorrow.");
-    if (finished && score === 9) {
-      const next = Math.max(1, streak);
-      setStreak(next);
-      window.localStorage.setItem(streakKey, String(next));
+    if (finished && !revealed) {
+      setMessage("Board locked. Hit Check the result for your score vibe — answers publish tomorrow.");
     }
-  }, [finished, score, streak, streakKey]);
+  }, [finished, revealed]);
 
   function placePlayer(index: number, player: string) {
-    if (!player) return;
-    if (cells.some((cell, cellIndex) => cellIndex !== index && normalize(cell?.answer ?? "") === normalize(player))) {
+    if (!player || revealed) return;
+    if (
+      cells.some(
+        (cell, cellIndex) =>
+          cellIndex !== index && normalize(cell?.answer ?? "") === normalize(player),
+      )
+    ) {
       setMessage("That player is already on your board. Choose a different name.");
       return;
     }
@@ -116,16 +131,13 @@ export function SportDailyGrid({
     const next = [...cells];
     next[index] = { answer: player, status: valid ? "correct" : "wrong" };
     setCells(next);
-    setMessage(
-      valid
-        ? "Nice! That player fits both clues. Tap the name to replace it."
-        : "No match. Tap the name to remove or replace it.",
-    );
+    setMessage(`${player} locked in square ${index + 1}. No spoilers — answers drop tomorrow.`);
     setPlayerCard("");
     setSelected(null);
   }
 
   function handleCellClick(index: number) {
+    if (revealed) return;
     if (cells[index]) {
       const removed = cells[index]?.answer;
       const next = [...cells];
@@ -139,6 +151,22 @@ export function SportDailyGrid({
     if (playerCard) placePlayer(index, playerCard);
   }
 
+  function checkResult() {
+    if (!finished) return;
+    setRevealed(true);
+    window.localStorage.setItem(revealKey, "1");
+    if (score === 9) {
+      const next = streak + 1;
+      setStreak(next);
+      window.localStorage.setItem(streakKey, String(next));
+    }
+    setMessage(
+      `${reaction.emoji} ${score}/9 · ${reaction.label}. Official answers publish tomorrow — share your vibe.`,
+    );
+    setShareMode("score");
+    setShowShare(true);
+  }
+
   const siteUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}${sitePath}`
@@ -150,7 +178,7 @@ export function SportDailyGrid({
       brand,
       puzzleNumber,
       dateKey,
-      score,
+      score: revealed ? score : 0,
       streak,
       siteUrl,
       cells,
@@ -159,43 +187,20 @@ export function SportDailyGrid({
     };
   }
 
-  function sharePayload(mode: ShareMode) {
-    return buildShareText(shareInput(mode));
-  }
-
-  async function copyShare(mode: ShareMode) {
-    await navigator.clipboard.writeText(sharePayload(mode));
-    setMessage("Share card copied.");
-  }
-
-  async function downloadShareImage(mode: ShareMode) {
-    const blob = await renderShareImage(shareInput(mode));
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${sport.toLowerCase()}-grid-${dateKey}-${mode}.png`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-    setMessage("Share image downloaded.");
-  }
-
-  async function nativeShare(mode: ShareMode) {
-    const text = sharePayload(mode);
+  async function oneClickShare(mode: ShareMode) {
+    setShareBusy(true);
     try {
-      const blob = await renderShareImage(shareInput(mode));
-      const file = new File([blob], `${sport.toLowerCase()}-grid-${mode}.png`, { type: "image/png" });
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ title: brand, text, files: [file] });
-        return;
-      }
+      await shareToClipboardAndDownload(
+        shareInput(mode),
+        `${sport.toLowerCase()}-grid-${dateKey}`,
+      );
+      setMessage("Copied to clipboard + image downloaded. Paste into X, Instagram, Facebook, LinkedIn…");
+      setShowShare(false);
     } catch {
-      // fall through
+      setMessage("Share failed — try again or allow clipboard access.");
+    } finally {
+      setShareBusy(false);
     }
-    if (navigator.share) {
-      await navigator.share({ title: brand, text });
-      return;
-    }
-    await copyShare(mode);
   }
 
   const remaining = board.pool.filter(
@@ -216,10 +221,11 @@ export function SportDailyGrid({
         <div className="game-meta-actions">
           <button onClick={() => setShowPrevious(true)}>Yesterday&apos;s answers</button>
           <div className="score">
-            <span>SCORE</span>
+            <span>{revealed ? "SCORE" : "FILLED"}</span>
             <strong>
-              {score}
+              {revealed ? score : guesses}
               <i>/9</i>
+              {revealed && <em className="score-reaction">{reaction.emoji}</em>}
             </strong>
           </div>
         </div>
@@ -258,7 +264,7 @@ export function SportDailyGrid({
                 return (
                   <button
                     key={index}
-                    className={`cell drop-cell ${selected === index ? "selected" : ""} ${playerCard ? "drop-ready" : ""} ${cell?.status ?? ""}`}
+                    className={`cell drop-cell ${selected === index ? "selected" : ""} ${playerCard ? "drop-ready" : ""} ${cell ? "filled-locked" : ""}`}
                     onClick={() => handleCellClick(index)}
                     onDragOver={(event) => {
                       event.preventDefault();
@@ -272,9 +278,9 @@ export function SportDailyGrid({
                   >
                     {cell ? (
                       <>
-                        <span>{cell.status === "correct" ? "✓" : "×"}</span>
+                        <b className="cell-slot-number muted">{index + 1}</b>
                         <small>{cell.answer}</small>
-                        <em>REPLACE</em>
+                        {!revealed && <em>TAP TO SWAP</em>}
                       </>
                     ) : (
                       <>
@@ -302,15 +308,17 @@ export function SportDailyGrid({
               <button
                 key={name}
                 className={`pool-card ${playerCard === name ? "picked" : ""}`}
-                draggable
+                draggable={!revealed}
                 onDragStart={(event) => {
+                  if (revealed) return;
                   setPlayerCard(name);
                   event.dataTransfer.setData("text/plain", name);
                   event.dataTransfer.effectAllowed = "move";
                 }}
                 onClick={() => {
+                  if (revealed) return;
                   setPlayerCard(name);
-                  setMessage(`${name} selected. Tap an empty square to place the card.`);
+                  setMessage(`${name} selected. Tap an empty square to lock it in.`);
                 }}
                 aria-label={`${name}. Drag to a grid square.`}
               >
@@ -321,20 +329,49 @@ export function SportDailyGrid({
             ))}
           </div>
           <p>
-            Desktop: drag and drop
+            Playing hides right/wrong
             <br />
-            Mobile: tap card, then square
+            Official answers tomorrow
             <br />
-            Tap a placed name to remove it
+            Tap a locked name to swap
           </p>
         </aside>
       </div>
+
+      {finished && !revealed && (
+        <div className="result-banner">
+          <div>
+            <strong>Board complete</strong>
+            <span>Check your score vibe. Per-square answers publish tomorrow.</span>
+          </div>
+          <button type="button" onClick={checkResult}>
+            Check the result
+          </button>
+        </div>
+      )}
+
+      {revealed && (
+        <div className="result-banner revealed">
+          <div className="result-emoji" aria-hidden>
+            {reaction.emoji}
+          </div>
+          <div>
+            <strong>
+              {score}/9 · {reaction.label}
+            </strong>
+            <span>Am I right?? Official answers drop tomorrow — share your card.</span>
+          </div>
+          <button type="button" onClick={() => setShowShare(true)}>
+            Share now
+          </button>
+        </div>
+      )}
 
       <div className="game-footer">
         <div>
           <span>{message}</span>
           <small>
-            {9 - guesses} guesses left · {sport} daily grid
+            {9 - guesses} open squares · {sport} daily grid
           </small>
         </div>
         <button className="share-button" onClick={() => setShowShare(true)}>
@@ -348,9 +385,9 @@ export function SportDailyGrid({
           <section className="answer-drawer share-drawer">
             <div className="drawer-head">
               <div>
-                <small>SHARE YOUR GRID</small>
-                <h2>Pick a card</h2>
-                <p>Same viral share flow as NFL — axes, fuzzy marks, Am I right?</p>
+                <small>ONE-CLICK SHARE</small>
+                <h2>Copy + download</h2>
+                <p>Text goes to clipboard and the image downloads — paste into X, IG, FB, LinkedIn.</p>
               </div>
               <button onClick={() => setShowShare(false)} aria-label="Close">
                 ×
@@ -359,9 +396,13 @@ export function SportDailyGrid({
             <div className="share-mode-tabs" role="tablist">
               {(
                 [
-                  ["blank", "Blank challenge", "Teams + feats, empty board"],
-                  ["score", "Am I right?", "Fuzzy 😊/😀 scoreboard"],
-                  ["answers", "My picks", "Names + fuzzy marks"],
+                  ["blank", "Blank challenge", "Axes only — dare your friends"],
+                  [
+                    "score",
+                    "My score vibe",
+                    revealed ? `${reaction.emoji} ${score}/9 · Am I right?` : "Check the result first",
+                  ],
+                  ["answers", "My locked picks", "Names only · answers tomorrow"],
                 ] as const
               ).map(([mode, label, hint]) => (
                 <button
@@ -370,6 +411,7 @@ export function SportDailyGrid({
                   role="tab"
                   aria-selected={shareMode === mode}
                   className={shareMode === mode ? "active" : ""}
+                  disabled={mode === "score" && !revealed}
                   onClick={() => setShareMode(mode)}
                 >
                   <strong>{label}</strong>
@@ -377,18 +419,24 @@ export function SportDailyGrid({
                 </button>
               ))}
             </div>
-            <pre className="share-preview">{sharePayload(shareMode)}</pre>
-            <div className="share-actions">
-              <button type="button" onClick={() => copyShare(shareMode)}>
-                Copy text
-              </button>
-              <button type="button" onClick={() => downloadShareImage(shareMode)}>
-                Download image
-              </button>
-              <button type="button" className="primary" onClick={() => nativeShare(shareMode)}>
-                Share to apps
+            <pre className="share-preview">
+              {buildShareText(shareInput(shareMode === "score" && !revealed ? "blank" : shareMode))}
+            </pre>
+            <div className="share-actions single">
+              <button
+                type="button"
+                className="primary"
+                disabled={shareBusy || (shareMode === "score" && !revealed)}
+                onClick={() =>
+                  oneClickShare(shareMode === "score" && !revealed ? "blank" : shareMode)
+                }
+              >
+                {shareBusy ? "Preparing…" : "Copy text + download image"}
               </button>
             </div>
+            <p className="drawer-note">
+              No green/red spoilers. Score uses 😭 😕 😐 🙂 😄 vibes. Answers publish tomorrow.
+            </p>
           </section>
         </div>
       )}
