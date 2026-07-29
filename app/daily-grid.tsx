@@ -125,8 +125,8 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
       ? window.location.origin
       : process.env.NEXT_PUBLIC_SITE_URL ?? "https://gridirongrid.org";
 
-  function sharePayload(mode: ShareMode) {
-    return buildShareText({
+  function shareInput(mode: ShareMode) {
+    return {
       mode,
       brand: "Gridiron Grid",
       puzzleNumber: puzzle.number,
@@ -135,31 +135,28 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
       streak,
       siteUrl,
       cells,
-    });
+      teams: puzzle.teams.map((team) => team.shortName),
+      categories: puzzle.categories.map((category) => category.shortLabel),
+    };
+  }
+
+  function sharePayload(mode: ShareMode) {
+    return buildShareText(shareInput(mode));
   }
 
   async function copyShare(mode: ShareMode) {
     await navigator.clipboard.writeText(sharePayload(mode));
     setMessage(
       mode === "blank"
-        ? "Blank challenge card copied. Paste on X, Facebook, LinkedIn, or Instagram."
+        ? "Challenge card copied — paste on X, Facebook, LinkedIn, or Instagram."
         : mode === "answers"
-          ? "Answer card copied with your picks."
-          : "Score card copied (spoiler-free).",
+          ? "Answer card copied (😊/😀 fuzzy marks + axes)."
+          : "Viral score card copied — Am I right? style.",
     );
   }
 
   async function downloadShareImage(mode: ShareMode) {
-    const blob = await renderShareImage({
-      mode,
-      brand: "Gridiron Grid",
-      puzzleNumber: puzzle.number,
-      dateKey,
-      score,
-      streak,
-      siteUrl,
-      cells,
-    });
+    const blob = await renderShareImage(shareInput(mode));
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -172,16 +169,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
   async function nativeShare(mode: ShareMode) {
     const text = sharePayload(mode);
     try {
-      const blob = await renderShareImage({
-        mode,
-        brand: "Gridiron Grid",
-        puzzleNumber: puzzle.number,
-        dateKey,
-        score,
-        streak,
-        siteUrl,
-        cells,
-      });
+      const blob = await renderShareImage(shareInput(mode));
       const file = new File([blob], `gridiron-grid-${mode}.png`, { type: "image/png" });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ title: "Gridiron Grid", text, files: [file] });
@@ -305,7 +293,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
               <div>
                 <small>SHARE YOUR GRID</small>
                 <h2>Pick a card</h2>
-                <p>Blank challenge, spoiler-free score, or full answer card.</p>
+                <p>Axes included. Fuzzy 😊/😀 marks. Viral “Am I right?” copy.</p>
               </div>
               <button onClick={() => setShowShare(false)} aria-label="Close">
                 ×
@@ -315,9 +303,9 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
             <div className="share-mode-tabs" role="tablist">
               {(
                 [
-                  ["blank", "Blank grid", "Invite friends without spoilers"],
-                  ["score", "Score only", "Emoji grid + score (Wordle style)"],
-                  ["answers", "My answers", "Shows your player picks"],
+                  ["blank", "Blank challenge", "Teams + feats, empty board — dare them"],
+                  ["score", "Am I right?", "Fuzzy 😊/😀 scoreboard · no hard spoilers"],
+                  ["answers", "My picks", "Names + fuzzy marks · ask if you cooked"],
                 ] as const
               ).map(([mode, label, hint]) => (
                 <button
