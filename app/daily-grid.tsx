@@ -50,6 +50,8 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
   const [shareMode, setShareMode] = useState<ShareMode>("score");
   const [shareBusy, setShareBusy] = useState(false);
   const [lastShareText, setLastShareText] = useState("");
+  const [sharePreviewUrl, setSharePreviewUrl] = useState<string | null>(null);
+  const [clipboardKind, setClipboardKind] = useState<"both" | "image" | "text">("image");
 
   const previousPuzzle = useMemo(() => {
     const previous = new Date(`${dateKey}T12:00:00Z`);
@@ -98,7 +100,11 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
     const savedReveal = window.localStorage.getItem(revealKey) === "1";
     const savedAnswers = window.localStorage.getItem(`${revealKey}:answers`) === "1";
     if (savedStreak) setStreak(savedStreak);
-    if (savedReveal) setRevealed(true);
+    // Sharing unlocks answers and must permanently lock the board across refreshes.
+    if (savedReveal || savedAnswers) {
+      setRevealed(true);
+      window.localStorage.setItem(revealKey, "1");
+    }
     if (savedAnswers) setAnswersUnlocked(true);
     if (stored) {
       try {
@@ -114,19 +120,26 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
     window.localStorage.setItem(storageKey, JSON.stringify(cells));
   }, [cells, storageKey]);
 
+  useEffect(() => {
+    return () => {
+      if (sharePreviewUrl) URL.revokeObjectURL(sharePreviewUrl);
+    };
+  }, [sharePreviewUrl]);
+
   const guesses = cells.filter(Boolean).length;
   const score = cells.filter((cell) => cell?.status === "correct").length;
   const finished = guesses === 9;
   const reaction = scoreReaction(score);
+  const boardLocked = revealed || answersUnlocked;
 
   useEffect(() => {
-    if (finished && !revealed) {
+    if (finished && !boardLocked) {
       setMessage("Board locked. Hit Check the result for your score vibe — share to unlock answers.");
     }
-  }, [finished, revealed]);
+  }, [finished, boardLocked]);
 
   function placePlayer(index: number, player: string) {
-    if (!player || revealed) return;
+    if (!player || boardLocked) return;
     if (
       cells.some(
         (cell, cellIndex) =>
@@ -148,7 +161,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
   }
 
   function handleCellClick(index: number) {
-    if (revealed) return;
+    if (boardLocked) return;
     if (cells[index]) {
       const removed = cells[index]?.answer;
       const next = [...cells];
@@ -175,9 +188,15 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
   }
 
   function unlockAnswers() {
-    unlockResult();
+    setRevealed(true);
     setAnswersUnlocked(true);
+    window.localStorage.setItem(revealKey, "1");
     window.localStorage.setItem(`${revealKey}:answers`, "1");
+    if (score === 9 && !revealed) {
+      const next = streak + 1;
+      setStreak(next);
+      window.localStorage.setItem("gridiron-grid-streak", String(next));
+    }
   }
 
   function checkResult() {
@@ -205,7 +224,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
       brand: "Gridiron Grid",
       puzzleNumber: puzzle.number,
       dateKey,
-      score: revealed || finished ? score : 0,
+      score: boardLocked || finished ? score : 0,
       streak,
       siteUrl,
       cells,
@@ -219,15 +238,18 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
     setShareBusy(true);
     try {
       const input = shareInput(mode);
-      const kind = await shareCardToClipboard(input);
+      const result = await shareCardToClipboard(input);
       unlockAnswers();
-      setLastShareText(buildShareText(input));
+      if (sharePreviewUrl) URL.revokeObjectURL(sharePreviewUrl);
+      setSharePreviewUrl(result.previewUrl);
+      setClipboardKind(result.kind);
+      setLastShareText(result.text);
       setShowShare(false);
       setShowShareDone(true);
       setMessage(
-        kind === "text"
-          ? "Added to clipboard (text + link)."
-          : "Added to clipboard — card image + link ready to paste.",
+        result.kind === "text"
+          ? "Card ready — download the image to share (clipboard image blocked)."
+          : "Share card image added to clipboard. Paste it into your app.",
       );
     } catch {
       setMessage("Share failed — try again or allow clipboard access.");
@@ -237,7 +259,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
   }
 
   async function shareAndGetAnswer() {
-    const mode: ShareMode = finished || revealed ? "score" : "blank";
+    const mode: ShareMode = finished || boardLocked ? "score" : "blank";
     await oneClickShare(mode);
   }
 
@@ -291,7 +313,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
                 return (
                   <button
                     key={index}
-                    className={`cell drop-cell ${selected === index ? "selected" : ""} ${playerCard ? "drop-ready" : ""} ${cell ? "filled-locked" : ""} ${revealed && cell ? cell.status : ""}`}
+                    className={`cell drop-cell ${selected === index ? "selected" : ""} ${playerCard ? "drop-ready" : ""} ${cell ? "filled-locked" : ""} ${boardLocked && cell ? cell.status : ""}`}
                     onClick={() => handleCellClick(index)}
                     onDragOver={(event) => {
                       event.preventDefault();
@@ -307,7 +329,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
                       <>
                         <b className="cell-slot-number muted">{index + 1}</b>
                         <small>{cell.answer}</small>
-                        {!revealed && <em>TAP TO SWAP</em>}
+                        {!boardLocked && <em>TAP TO SWAP</em>}
                       </>
                     ) : (
                       <>
@@ -337,15 +359,15 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
                 <button
                   key={name}
                   className={`pool-card ${playerCard === name ? "picked" : ""}`}
-                  draggable={!revealed}
+                  draggable={!boardLocked}
                   onDragStart={(event) => {
-                    if (revealed) return;
+                    if (boardLocked) return;
                     setPlayerCard(name);
                     event.dataTransfer.setData("text/plain", name);
                     event.dataTransfer.effectAllowed = "move";
                   }}
                   onClick={() => {
-                    if (revealed) return;
+                    if (boardLocked) return;
                     setPlayerCard(name);
                     setMessage(`${name} selected. Tap an empty square to lock it in.`);
                   }}
@@ -367,7 +389,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
         </aside>
       </div>
 
-      {finished && !revealed && (
+      {finished && !boardLocked && (
         <div className="result-banner">
           <div>
             <strong>Board complete</strong>
@@ -379,7 +401,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
         </div>
       )}
 
-      {revealed && (
+      {boardLocked && (
         <div className="result-banner revealed">
           <div className="result-emoji" aria-hidden>
             {reaction.emoji}
@@ -390,7 +412,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
             </strong>
             <span>
               {answersUnlocked
-                ? "Answers unlocked. Review the official picks anytime."
+                ? "Answers unlocked. Board is locked for today."
                 : "Share your card to unlock today's official answers."}
             </span>
           </div>
@@ -473,7 +495,9 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
       {showShareDone && (
         <ShareDonePanel
           siteUrl={siteUrl}
-          shareText={lastShareText || buildShareText(shareInput(finished || revealed ? "score" : "blank"))}
+          shareText={lastShareText || buildShareText(shareInput(finished || boardLocked ? "score" : "blank"))}
+          previewUrl={sharePreviewUrl}
+          clipboardKind={clipboardKind}
           onClose={() => setShowShareDone(false)}
           onViewAnswers={() => {
             setShowShareDone(false);

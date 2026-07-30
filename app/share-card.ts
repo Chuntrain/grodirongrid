@@ -297,26 +297,26 @@ export async function renderShareImage(input: ShareInput): Promise<Blob> {
   });
 }
 
-/** Copy share card image + short text link together when the browser allows it. */
+/** Build the share card and try to put the IMAGE on the clipboard. */
 export async function shareCardToClipboard(
   input: ShareInput,
   _filePrefix?: string,
-): Promise<"both" | "image" | "text"> {
+): Promise<{ kind: "both" | "image" | "text"; blob: Blob; text: string; previewUrl: string }> {
   const safeInput: ShareInput =
     input.mode === "answers" ? { ...input, mode: "score" } : input;
   const text = buildShareText(safeInput);
   const blob = await renderShareImage(safeInput);
-  const textBlob = new Blob([text], { type: "text/plain" });
+  const previewUrl = URL.createObjectURL(blob);
 
   if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+    // Prefer image-only first — mixed text+image often fails and drops the picture.
     try {
       await navigator.clipboard.write([
         new ClipboardItem({
           "image/png": Promise.resolve(blob),
-          "text/plain": Promise.resolve(textBlob),
         }),
       ]);
-      return "both";
+      return { kind: "image", blob, text, previewUrl };
     } catch {
       // Fall through.
     }
@@ -324,27 +324,53 @@ export async function shareCardToClipboard(
       await navigator.clipboard.write([
         new ClipboardItem({
           "image/png": blob,
-          "text/plain": textBlob,
+          "text/plain": new Blob([text], { type: "text/plain" }),
         }),
       ]);
-      return "both";
+      return { kind: "both", blob, text, previewUrl };
     } catch {
       // Fall through.
     }
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          "image/png": Promise.resolve(blob),
-        }),
-      ]);
-      return "image";
-    } catch {
-      // Fall through to text-only.
-    }
   }
 
-  await navigator.clipboard.writeText(text);
-  return "text";
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Clipboard blocked — caller still has the preview/download.
+  }
+  return { kind: "text", blob, text, previewUrl };
+}
+
+/** Try the OS share sheet with the card image attached (mobile / supported browsers). */
+export async function shareCardNative(input: {
+  blob: Blob;
+  text: string;
+  url: string;
+  title?: string;
+}): Promise<boolean> {
+  const file = new File([input.blob], "gridiron-grid-share.png", { type: "image/png" });
+  const payload: ShareData = {
+    files: [file],
+    text: input.text,
+    url: input.url,
+    title: input.title ?? "Gridiron Grid",
+  };
+  if (typeof navigator.share !== "function") return false;
+  if (navigator.canShare && !navigator.canShare(payload)) {
+    // Retry without files if the browser rejects image shares.
+    try {
+      await navigator.share({ text: input.text, url: input.url, title: payload.title });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  try {
+    await navigator.share(payload);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** @deprecated Use shareCardToClipboard — kept for any stale imports. */
