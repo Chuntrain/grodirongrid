@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState } from "react";
 import { shareCardNative, socialShareTargets } from "./share-card";
 
 type ShareDonePanelProps = {
@@ -22,16 +22,14 @@ export function ShareDonePanel({
 }: ShareDonePanelProps) {
   const targets = socialShareTargets(shareText, siteUrl);
   const imageOnClipboard = clipboardKind === "both" || clipboardKind === "image";
+  const caption = shareText;
+  const [copiedCaption, setCopiedCaption] = useState(false);
 
-  useEffect(() => {
-    return () => {
-      // Parent owns the object URL lifetime; no revoke here.
-    };
-  }, []);
-
-  async function copyLink() {
+  async function copyCaption() {
     try {
-      await navigator.clipboard.writeText(`${shareText}\n${siteUrl}`);
+      await navigator.clipboard.writeText(caption);
+      setCopiedCaption(true);
+      window.setTimeout(() => setCopiedCaption(false), 1800);
     } catch {
       // ignore
     }
@@ -62,12 +60,14 @@ export function ShareDonePanel({
       <section className="answer-drawer share-drawer share-done-drawer">
         <div className="drawer-head">
           <div>
-            <small>CLIPBOARD</small>
-            <h2>{imageOnClipboard ? "Image copied" : "Ready to share"}</h2>
+            <small>SHARE READY</small>
+            <h2>{imageOnClipboard ? "Image + caption" : "Ready to share"}</h2>
             <p>
-              {imageOnClipboard
-                ? "Share card image is on your clipboard — paste into X, Instagram, Facebook, or Messages."
-                : "Preview the card below. Download it or use a social button — this browser blocked image clipboard."}
+              {clipboardKind === "both"
+                ? "Image and caption are on your clipboard — paste into your app, or copy the caption again below."
+                : imageOnClipboard
+                  ? "Share card image is on your clipboard. Copy the caption below so your post has text + link."
+                  : "Preview the card below. Download it, copy the caption, or use a social button."}
             </p>
           </div>
           <button onClick={onClose} aria-label="Close">
@@ -77,7 +77,25 @@ export function ShareDonePanel({
 
         <div className="clipboard-banner" role="status">
           <span aria-hidden>✓</span>
-          <strong>{imageOnClipboard ? "Added to clipboard" : "Card ready — download to share"}</strong>
+          <strong>
+            {clipboardKind === "both"
+              ? "Image + caption copied"
+              : imageOnClipboard
+                ? "Image copied — caption below"
+                : "Card ready — copy caption"}
+          </strong>
+        </div>
+
+        <div className="share-caption-block">
+          <div className="share-caption-head">
+            <small>SHARE CAPTION</small>
+            <button type="button" className="caption-copy-btn" onClick={copyCaption}>
+              {copiedCaption ? "Copied ✓" : "Copy caption"}
+            </button>
+          </div>
+          <pre className="share-preview" tabIndex={0}>
+            {caption}
+          </pre>
         </div>
 
         {previewUrl && (
@@ -115,11 +133,11 @@ export function ShareDonePanel({
               {target.label}
             </a>
           ))}
-          <button type="button" className="social-share-btn social-link" onClick={copyLink}>
+          <button type="button" className="social-share-btn social-link" onClick={copyCaption}>
             <span className="social-icon" aria-hidden>
               ↗
             </span>
-            Copy link
+            {copiedCaption ? "Copied" : "Copy caption"}
           </button>
         </div>
 

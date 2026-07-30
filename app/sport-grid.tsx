@@ -185,6 +185,7 @@ export function SportDailyGrid({
       siteUrl,
       cells,
       teams: board.teams.map((team) => team.name),
+      teamLogos: board.teams.map((team) => `/${logoFolder}/${team.id.toLowerCase()}.png`),
       categories: board.categories.map((category) => category.short),
       pool: board.pool,
     };
@@ -203,9 +204,11 @@ export function SportDailyGrid({
       setShowShare(false);
       setShowShareDone(true);
       setMessage(
-        result.kind === "text"
-          ? "Card ready — download the image to share (clipboard image blocked)."
-          : "Share card image added to clipboard. Paste it into your app.",
+        result.kind === "both"
+          ? "Image + caption copied. Paste into your app, or copy the caption again from the panel."
+          : result.kind === "image"
+            ? "Image copied — copy the caption in the panel so your post has text + link."
+            : "Card ready — download the image and copy the caption from the panel.",
       );
     } catch {
       setMessage("Share failed — try again or allow clipboard access.");
@@ -455,7 +458,7 @@ export function SportDailyGrid({
               </button>
             </div>
             <p className="drawer-note">
-              Shared card shows your locked player names and today&apos;s 9-player pool. No text table — paste the image.
+              Shared card shows team logos, your locked picks, and today&apos;s 9-player pool — plus a short caption to paste with the image.
             </p>
           </section>
         </div>

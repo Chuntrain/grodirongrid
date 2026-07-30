@@ -91,6 +91,14 @@ export default async function Home() {
 }
 ```
 
+## Share card
+
+After solving (or to unlock answers), **Share** builds a PNG card and a short caption:
+
+- Caption format: brand + puzzle # + date, score hook, play link, `#GridironGrid`
+- Card includes row **team logos** + names, full category labels on the X-axis (wrapped, not truncated), locked player names, and the 9-player pool
+- Done panel shows the caption with **Copy caption**; clipboard prefers image + text when the browser allows it
+
 ## Optional Dispatch-Owned ChatGPT Sign-In
 
 Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs

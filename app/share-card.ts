@@ -10,6 +10,8 @@ export type ShareInput = {
   siteUrl: string;
   cells: ({ answer: string; status: "correct" | "wrong" } | null)[];
   teams: string[];
+  /** Absolute or same-origin URLs for each row team logo (drawn on the card). */
+  teamLogos?: string[];
   categories: string[];
   /** Today's nine selectable player names for the share card. */
   pool?: string[];
@@ -96,21 +98,98 @@ export function socialShareTargets(text: string, url: string): SocialTarget[] {
   ];
 }
 
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    let settled = false;
+    const done = (value: HTMLImageElement | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    img.onload = () => {
+      if (typeof img.decode === "function") {
+        img
+          .decode()
+          .then(() => done(img))
+          .catch(() => done(img.naturalWidth > 0 ? img : null));
+      } else {
+        done(img);
+      }
+    };
+    img.onerror = () => done(null);
+    img.src = src;
+    if (img.complete && img.naturalWidth > 0) {
+      done(img);
+    }
+  });
+}
+
+function drawImageContain(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  box: number,
+) {
+  const scale = Math.min(box / img.width, box / img.height);
+  const w = img.width * scale;
+  const h = img.height * scale;
+  ctx.drawImage(img, x + (box - w) / 2, y + (box - h) / 2, w, h);
+}
+
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(" ");
+  const words = text.trim().split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let current = "";
+
+  const pushBrokenWord = (word: string) => {
+    let chunk = "";
+    for (const ch of word) {
+      const next = chunk + ch;
+      if (ctx.measureText(next).width > maxWidth && chunk) {
+        lines.push(chunk);
+        chunk = ch;
+      } else {
+        chunk = next;
+      }
+    }
+    if (chunk) current = chunk;
+  };
+
   for (const word of words) {
     const next = current ? `${current} ${word}` : word;
     if (ctx.measureText(next).width > maxWidth && current) {
       lines.push(current);
-      current = word;
+      current = "";
+      if (ctx.measureText(word).width > maxWidth) {
+        pushBrokenWord(word);
+      } else {
+        current = word;
+      }
+    } else if (ctx.measureText(next).width > maxWidth) {
+      pushBrokenWord(word);
     } else {
       current = next;
     }
   }
   if (current) lines.push(current);
   return lines;
+}
+
+/** Centered multi-line label — keeps every line of the source text (no ellipsis). */
+function drawCenteredLines(
+  ctx: CanvasRenderingContext2D,
+  lines: string[],
+  cx: number,
+  cy: number,
+  lineHeight: number,
+) {
+  const startY = cy - ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((line, index) => {
+    const w = ctx.measureText(line).width;
+    ctx.fillText(line, cx - w / 2, startY + index * lineHeight);
+  });
 }
 
 function drawWrappedName(
@@ -162,6 +241,8 @@ export async function renderShareImage(input: ShareInput): Promise<Blob> {
   const reaction = scoreReaction(input.score);
   const mode = input.mode === "answers" ? "score" : input.mode;
   const pool = (input.pool ?? []).slice(0, 9);
+  const logoUrls = (input.teamLogos ?? []).slice(0, 3);
+  const logos = await Promise.all(logoUrls.map((src) => (src ? loadImage(src) : Promise.resolve(null))));
 
   ctx.fillStyle = ink;
   ctx.fillRect(0, 0, width, height);
@@ -195,40 +276,61 @@ export async function renderShareImage(input: ShareInput): Promise<Blob> {
     cursorY += 78;
   }
 
-  const labelCol = 160;
-  const square = 168;
+  const labelCol = 176;
+  const square = 176;
   const gap = 12;
   const boardW = labelCol + square * 3 + gap * 2;
   const startX = (width - boardW) / 2;
   const startY = cursorY;
+  const teamColW = labelCol - 12;
+  const categoryPad = 10;
+  const categoryLineH = 20;
+
+  // Full X-axis labels — wrap to fit the column, never ellipsis-truncate.
+  ctx.font = "800 18px Barlow Condensed, Arial Black, sans-serif";
+  const categoryLines = input.categories.map((category) =>
+    wrapText(ctx, category.trim().toUpperCase(), square - categoryPad * 2),
+  );
+  const maxCatLines = Math.max(1, ...categoryLines.map((lines) => lines.length));
+  const headerH = Math.max(72, 28 + maxCatLines * categoryLineH);
 
   ctx.fillStyle = cream;
-  ctx.fillRect(startX + labelCol, startY, square * 3 + gap * 2, 64);
+  ctx.fillRect(startX + labelCol, startY, square * 3 + gap * 2, headerH);
   ctx.fillStyle = ink;
   ctx.font = "800 18px Barlow Condensed, Arial Black, sans-serif";
-  input.categories.forEach((category, col) => {
+  categoryLines.forEach((lines, col) => {
     const x = startX + labelCol + col * (square + gap);
-    const label = shortLabel(category, 12);
-    const textWidth = ctx.measureText(label).width;
-    ctx.fillText(label, x + (square - textWidth) / 2, startY + 40);
+    drawCenteredLines(ctx, lines, x + square / 2, startY + headerH / 2 + 6, categoryLineH);
   });
 
   ctx.fillStyle = "#2a3128";
-  ctx.fillRect(startX, startY, labelCol - 12, 64);
+  ctx.fillRect(startX, startY, teamColW, headerH);
   ctx.fillStyle = lime;
   ctx.font = "700 15px Inter, Arial, sans-serif";
-  ctx.fillText("TEAM × FEAT", startX + 16, startY + 38);
+  ctx.fillText("TEAM × FEAT", startX + 16, startY + headerH / 2 + 5);
 
   for (let row = 0; row < 3; row++) {
-    const y = startY + 64 + 10 + row * (square + gap);
+    const y = startY + headerH + 10 + row * (square + gap);
+    const logo = logos[row];
+    const teamName = (input.teams[row] ?? "").trim();
 
     ctx.fillStyle = cream;
-    ctx.fillRect(startX, y, labelCol - 12, square);
-    ctx.fillStyle = ink;
-    ctx.font = "800 22px Barlow Condensed, Arial Black, sans-serif";
-    const team = shortLabel(input.teams[row], 10);
-    const teamWidth = ctx.measureText(team).width;
-    ctx.fillText(team, startX + (labelCol - 12 - teamWidth) / 2, y + square / 2 + 8);
+    ctx.fillRect(startX, y, teamColW, square);
+
+    // Team logo + name (match the live board: logo above, name below).
+    if (logo) {
+      const logoBox = 78;
+      drawImageContain(ctx, logo, startX + (teamColW - logoBox) / 2, y + 18, logoBox);
+      ctx.fillStyle = ink;
+      ctx.font = "800 18px Barlow Condensed, Arial Black, sans-serif";
+      const nameLines = wrapText(ctx, teamName.toUpperCase(), teamColW - 16);
+      drawCenteredLines(ctx, nameLines.slice(0, 2), startX + teamColW / 2, y + square - 28, 18);
+    } else {
+      ctx.fillStyle = ink;
+      ctx.font = "800 22px Barlow Condensed, Arial Black, sans-serif";
+      const nameLines = wrapText(ctx, teamName.toUpperCase(), teamColW - 16);
+      drawCenteredLines(ctx, nameLines.slice(0, 3), startX + teamColW / 2, y + square / 2 + 6, 22);
+    }
 
     for (let col = 0; col < 3; col++) {
       const index = row * 3 + col;
@@ -254,7 +356,7 @@ export async function renderShareImage(input: ShareInput): Promise<Blob> {
     }
   }
 
-  const boardBottom = startY + 64 + 10 + 3 * (square + gap);
+  const boardBottom = startY + headerH + 10 + 3 * (square + gap);
   let poolY = boardBottom + 28;
 
   if (pool.length > 0) {
@@ -297,7 +399,7 @@ export async function renderShareImage(input: ShareInput): Promise<Blob> {
   });
 }
 
-/** Build the share card and try to put the IMAGE on the clipboard. */
+/** Build the share card and try to put IMAGE + caption on the clipboard. */
 export async function shareCardToClipboard(
   input: ShareInput,
   _filePrefix?: string,
@@ -307,9 +409,21 @@ export async function shareCardToClipboard(
   const text = buildShareText(safeInput);
   const blob = await renderShareImage(safeInput);
   const previewUrl = URL.createObjectURL(blob);
+  const textBlob = new Blob([text], { type: "text/plain" });
 
   if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
-    // Prefer image-only first — mixed text+image often fails and drops the picture.
+    // Prefer image + caption together when the browser allows it.
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "image/png": blob,
+          "text/plain": textBlob,
+        }),
+      ]);
+      return { kind: "both", blob, text, previewUrl };
+    } catch {
+      // Fall through — mixed clipboard often fails on Safari / some Chromium builds.
+    }
     try {
       await navigator.clipboard.write([
         new ClipboardItem({
@@ -320,23 +434,12 @@ export async function shareCardToClipboard(
     } catch {
       // Fall through.
     }
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          "image/png": blob,
-          "text/plain": new Blob([text], { type: "text/plain" }),
-        }),
-      ]);
-      return { kind: "both", blob, text, previewUrl };
-    } catch {
-      // Fall through.
-    }
   }
 
   try {
     await navigator.clipboard.writeText(text);
   } catch {
-    // Clipboard blocked — caller still has the preview/download.
+    // Clipboard blocked — caller still has the preview/download + caption UI.
   }
   return { kind: "text", blob, text, previewUrl };
 }
