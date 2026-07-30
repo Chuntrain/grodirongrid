@@ -60,9 +60,6 @@ export function SportDailyGrid({
   const dateKey = useMemo(() => requestedDate || easternPuzzleDate(), [requestedDate]);
   const board = useMemo(() => pickBoard(dateKey, boards), [boards, dateKey, pickBoard]);
   const puzzleNumber = useMemo(() => puzzleNumberFor(dateKey), [dateKey]);
-  const storageKey = `gridiron-${sport.toLowerCase()}:${dateKey}`;
-  const revealKey = `${storageKey}:revealed`;
-  const streakKey = `gridiron-${sport.toLowerCase()}-streak`;
 
   const [cells, setCells] = useState<CellState[]>(Array(9).fill(null));
   const [selected, setSelected] = useState<number | null>(null);
@@ -91,31 +88,6 @@ export function SportDailyGrid({
   }, [boards, dateKey, pickBoard]);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(storageKey);
-    const savedStreak = Number(window.localStorage.getItem(streakKey) || 0);
-    const savedReveal = window.localStorage.getItem(revealKey) === "1";
-    const savedAnswers = window.localStorage.getItem(`${revealKey}:answers`) === "1";
-    if (savedStreak) setStreak(savedStreak);
-    if (savedReveal || savedAnswers) {
-      setRevealed(true);
-      window.localStorage.setItem(revealKey, "1");
-    }
-    if (savedAnswers) setAnswersUnlocked(true);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length === 9) setCells(parsed);
-      } catch {
-        // ignore
-      }
-    }
-  }, [storageKey, streakKey, revealKey]);
-
-  useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(cells));
-  }, [cells, storageKey]);
-
-  useEffect(() => {
     return () => {
       if (sharePreviewUrl) URL.revokeObjectURL(sharePreviewUrl);
     };
@@ -125,7 +97,7 @@ export function SportDailyGrid({
   const score = cells.filter((cell) => cell?.status === "correct").length;
   const finished = guesses === 9;
   const reaction = scoreReaction(score);
-  const boardLocked = revealed || answersUnlocked;
+  const boardLocked = revealed || answersUnlocked; // session-only; refresh clears
 
   useEffect(() => {
     if (finished && !boardLocked) {
@@ -173,25 +145,14 @@ export function SportDailyGrid({
   function unlockResult() {
     if (!revealed) {
       setRevealed(true);
-      window.localStorage.setItem(revealKey, "1");
-      if (score === 9) {
-        const next = streak + 1;
-        setStreak(next);
-        window.localStorage.setItem(streakKey, String(next));
-      }
+      if (score === 9) setStreak((value) => value + 1);
     }
   }
 
   function unlockAnswers() {
     setRevealed(true);
     setAnswersUnlocked(true);
-    window.localStorage.setItem(revealKey, "1");
-    window.localStorage.setItem(`${revealKey}:answers`, "1");
-    if (score === 9 && !revealed) {
-      const next = streak + 1;
-      setStreak(next);
-      window.localStorage.setItem(streakKey, String(next));
-    }
+    if (score === 9 && !revealed) setStreak((value) => value + 1);
   }
 
   function checkResult() {

@@ -31,8 +31,6 @@ function normalize(value: string) {
 export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
   const dateKey = useMemo(() => requestedDate || easternPuzzleDate(), [requestedDate]);
   const puzzle = useMemo(() => dailyPuzzle(dateKey), [dateKey]);
-  const storageKey = `gridiron-grid:${dateKey}`;
-  const revealKey = `${storageKey}:revealed`;
 
   const [cells, setCells] = useState<CellState[]>(Array(9).fill(null));
   const [selected, setSelected] = useState<number | null>(null);
@@ -95,32 +93,6 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
   }, [dateKey, puzzle]);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(storageKey);
-    const savedStreak = Number(window.localStorage.getItem("gridiron-grid-streak") || 0);
-    const savedReveal = window.localStorage.getItem(revealKey) === "1";
-    const savedAnswers = window.localStorage.getItem(`${revealKey}:answers`) === "1";
-    if (savedStreak) setStreak(savedStreak);
-    // Sharing unlocks answers and must permanently lock the board across refreshes.
-    if (savedReveal || savedAnswers) {
-      setRevealed(true);
-      window.localStorage.setItem(revealKey, "1");
-    }
-    if (savedAnswers) setAnswersUnlocked(true);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length === 9) setCells(parsed);
-      } catch {
-        // ignore
-      }
-    }
-  }, [storageKey, revealKey]);
-
-  useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(cells));
-  }, [cells, storageKey]);
-
-  useEffect(() => {
     return () => {
       if (sharePreviewUrl) URL.revokeObjectURL(sharePreviewUrl);
     };
@@ -130,6 +102,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
   const score = cells.filter((cell) => cell?.status === "correct").length;
   const finished = guesses === 9;
   const reaction = scoreReaction(score);
+  // Session-only lock — refresh clears state and lets you play again.
   const boardLocked = revealed || answersUnlocked;
 
   useEffect(() => {
@@ -178,25 +151,14 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
   function unlockResult() {
     if (!revealed) {
       setRevealed(true);
-      window.localStorage.setItem(revealKey, "1");
-      if (score === 9) {
-        const next = streak + 1;
-        setStreak(next);
-        window.localStorage.setItem("gridiron-grid-streak", String(next));
-      }
+      if (score === 9) setStreak((value) => value + 1);
     }
   }
 
   function unlockAnswers() {
     setRevealed(true);
     setAnswersUnlocked(true);
-    window.localStorage.setItem(revealKey, "1");
-    window.localStorage.setItem(`${revealKey}:answers`, "1");
-    if (score === 9 && !revealed) {
-      const next = streak + 1;
-      setStreak(next);
-      window.localStorage.setItem("gridiron-grid-streak", String(next));
-    }
+    if (score === 9 && !revealed) setStreak((value) => value + 1);
   }
 
   function checkResult() {
@@ -412,7 +374,7 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
             </strong>
             <span>
               {answersUnlocked
-                ? "Answers unlocked. Board is locked for today."
+                ? "Answers unlocked for this session. Refresh to play again."
                 : "Share your card to unlock today's official answers."}
             </span>
           </div>
