@@ -528,6 +528,45 @@ export async function shareCardToClipboard(
   return { kind, blob, text, previewUrl };
 }
 
+/** Filename for downloads / OS share — always brands https://gridirongrid.org/ (OS-safe). */
+export function shareImageFilename(_siteUrl?: string) {
+  return "gridiron-grid-https-gridirongrid.org.png";
+}
+
+/** Copy only the caption text (+ link already inside buildShareText). */
+export async function copyShareText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Copy only the share card image. */
+export async function copyShareImage(blob: Blob): Promise<boolean> {
+  if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) return false;
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        "image/png": blob,
+      }),
+    ]);
+    return true;
+  } catch {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "image/png": Promise.resolve(blob),
+        }),
+      ]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
 /** Try the OS share sheet with the card image attached (mobile / supported browsers). */
 export async function shareCardNative(input: {
   blob: Blob;
@@ -535,7 +574,7 @@ export async function shareCardNative(input: {
   url: string;
   title?: string;
 }): Promise<boolean> {
-  const file = new File([input.blob], "gridiron-grid-share.png", { type: "image/png" });
+  const file = new File([input.blob], shareImageFilename(input.url), { type: "image/png" });
   const payload: ShareData = {
     files: [file],
     text: input.text,

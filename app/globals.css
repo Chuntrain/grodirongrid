@@ -166,6 +166,9 @@ button, input { font: inherit; }
 .clipboard-banner strong { font-family:var(--font-display); font-size:22px; text-transform:uppercase; letter-spacing:.03em; }
 .share-image-preview { margin-top:16px; border:1px solid #bbb7aa; background:#10140f; padding:10px; }
 .share-image-preview img { display:block; width:100%; height:auto; max-height:360px; object-fit:contain; }
+.share-image-filename { display:block; margin-top:8px; color:#aeb5ab; font-size:10px; font-weight:700; letter-spacing:.04em; word-break:break-all; }
+.share-copy-pair { margin-top:16px; }
+.share-copy-pair button { min-height:48px; font-size:12px; }
 .share-actions.dual { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px; }
 .share-actions.dual button { border:1px solid var(--ink); background:transparent; color:var(--ink); padding:12px 8px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; cursor:pointer; }
 .share-actions.dual button.primary { background:var(--field); color:white; border-color:var(--field); }
