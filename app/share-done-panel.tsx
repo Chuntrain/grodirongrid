@@ -21,9 +21,9 @@ export function ShareDonePanel({
   onViewAnswers,
 }: ShareDonePanelProps) {
   const targets = socialShareTargets(shareText, siteUrl);
-  const imageOnClipboard = clipboardKind === "both" || clipboardKind === "image";
   const caption = shareText;
   const [copiedCaption, setCopiedCaption] = useState(false);
+  const allOnClipboard = clipboardKind === "both";
 
   async function copyCaption() {
     try {
@@ -61,13 +61,13 @@ export function ShareDonePanel({
         <div className="drawer-head">
           <div>
             <small>SHARE READY</small>
-            <h2>{imageOnClipboard ? "Image + caption" : "Ready to share"}</h2>
+            <h2>{allOnClipboard ? "Copied — ready to paste" : "Ready to share"}</h2>
             <p>
-              {clipboardKind === "both"
-                ? "Image and caption are on your clipboard — paste into your app, or copy the caption again below."
-                : imageOnClipboard
-                  ? "Share card image is on your clipboard. Copy the caption below so your post has text + link."
-                  : "Preview the card below. Download it, copy the caption, or use a social button."}
+              {allOnClipboard
+                ? "Caption, link, and share image are on your clipboard. Open your app and paste."
+                : clipboardKind === "image"
+                  ? "Image is on your clipboard. This browser blocked caption+image together — tap Copy caption once, then paste both."
+                  : "Preview below. Download the image and copy the caption, then paste into your app."}
             </p>
           </div>
           <button onClick={onClose} aria-label="Close">
@@ -78,20 +78,22 @@ export function ShareDonePanel({
         <div className="clipboard-banner" role="status">
           <span aria-hidden>✓</span>
           <strong>
-            {clipboardKind === "both"
-              ? "Image + caption copied"
-              : imageOnClipboard
-                ? "Image copied — caption below"
-                : "Card ready — copy caption"}
+            {allOnClipboard
+              ? "Text + link + image copied"
+              : clipboardKind === "image"
+                ? "Image copied"
+                : "Card ready"}
           </strong>
         </div>
 
         <div className="share-caption-block">
           <div className="share-caption-head">
             <small>SHARE CAPTION</small>
-            <button type="button" className="caption-copy-btn" onClick={copyCaption}>
-              {copiedCaption ? "Copied ✓" : "Copy caption"}
-            </button>
+            {!allOnClipboard && (
+              <button type="button" className="caption-copy-btn" onClick={copyCaption}>
+                {copiedCaption ? "Copied ✓" : "Copy caption"}
+              </button>
+            )}
           </div>
           <pre className="share-preview" tabIndex={0}>
             {caption}
@@ -137,7 +139,7 @@ export function ShareDonePanel({
             <span className="social-icon" aria-hidden>
               ↗
             </span>
-            {copiedCaption ? "Copied" : "Copy caption"}
+            {copiedCaption ? "Copied" : allOnClipboard ? "Copy again" : "Copy caption"}
           </button>
         </div>
 

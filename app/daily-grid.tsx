@@ -211,9 +211,9 @@ export function DailyGrid({ date: requestedDate }: { date?: string } = {}) {
       setShowShareDone(true);
       setMessage(
         result.kind === "both"
-          ? "Image + caption copied. Paste into your app, or copy the caption again from the panel."
+          ? "Caption, link, and image copied — paste into your app."
           : result.kind === "image"
-            ? "Image copied — copy the caption in the panel so your post has text + link."
+            ? "Image copied. This browser blocked text+image together — use Copy caption once."
             : "Card ready — download the image and copy the caption from the panel.",
       );
     } catch {

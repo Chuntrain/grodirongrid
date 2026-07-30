@@ -399,7 +399,99 @@ export async function renderShareImage(input: ShareInput): Promise<Blob> {
   });
 }
 
-/** Build the share card and try to put IMAGE + caption on the clipboard. */
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read image"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function buildShareHtml(text: string, imageDataUrl: string) {
+  const lines = escapeHtml(text).replace(/\n/g, "<br>");
+  return `<div style="font-family:system-ui,sans-serif;white-space:pre-wrap;line-height:1.45">${lines}</div><br><img src="${imageDataUrl}" alt="Gridiron Grid share card" />`;
+}
+
+/**
+ * Write caption + image in one clipboard item.
+ * Uses Promises (Safari user-gesture friendly) and several MIME fallbacks.
+ */
+async function writeCaptionAndImage(
+  imagePromise: Promise<Blob>,
+  text: string,
+): Promise<"both" | "image" | "text"> {
+  if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // ignore
+    }
+    return "text";
+  }
+
+  const textPromise = Promise.resolve(new Blob([text], { type: "text/plain" }));
+  const htmlPromise = imagePromise.then(async (blob) => {
+    const dataUrl = await blobToDataUrl(blob);
+    return new Blob([buildShareHtml(text, dataUrl)], { type: "text/html" });
+  });
+
+  const attempts: Record<string, Blob | Promise<Blob>>[] = [
+    // Best: plain text + rich HTML (caption + image) + PNG
+    {
+      "text/plain": textPromise,
+      "text/html": htmlPromise,
+      "image/png": imagePromise,
+    },
+    // Common Chromium path: plain caption + PNG
+    {
+      "text/plain": textPromise,
+      "image/png": imagePromise,
+    },
+    // Rich editors still get caption + embedded image
+    {
+      "text/plain": textPromise,
+      "text/html": htmlPromise,
+    },
+  ];
+
+  for (const payload of attempts) {
+    try {
+      await navigator.clipboard.write([new ClipboardItem(payload)]);
+      return "both";
+    } catch {
+      // try next combination
+    }
+  }
+
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        "image/png": imagePromise,
+      }),
+    ]);
+    return "image";
+  } catch {
+    // fall through
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // ignore
+  }
+  return "text";
+}
+
+/** Build the share card and put caption + image on the clipboard in one click. */
 export async function shareCardToClipboard(
   input: ShareInput,
   _filePrefix?: string,
@@ -407,41 +499,33 @@ export async function shareCardToClipboard(
   const safeInput: ShareInput =
     input.mode === "answers" ? { ...input, mode: "score" } : input;
   const text = buildShareText(safeInput);
-  const blob = await renderShareImage(safeInput);
-  const previewUrl = URL.createObjectURL(blob);
-  const textBlob = new Blob([text], { type: "text/plain" });
 
-  if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
-    // Prefer image + caption together when the browser allows it.
+  // Start image render as a Promise immediately so ClipboardItem can hold it
+  // without awaiting first (keeps the user-gesture chain alive on Safari).
+  const imagePromise = renderShareImage(safeInput);
+  const kind = await writeCaptionAndImage(imagePromise, text);
+  const blob = await imagePromise;
+  const previewUrl = URL.createObjectURL(blob);
+
+  // If only the image landed, try one more mixed write now that the blob is ready.
+  if (kind === "image" && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
     try {
       await navigator.clipboard.write([
         new ClipboardItem({
+          "text/plain": new Blob([text], { type: "text/plain" }),
+          "text/html": new Blob([buildShareHtml(text, await blobToDataUrl(blob))], {
+            type: "text/html",
+          }),
           "image/png": blob,
-          "text/plain": textBlob,
         }),
       ]);
       return { kind: "both", blob, text, previewUrl };
     } catch {
-      // Fall through — mixed clipboard often fails on Safari / some Chromium builds.
-    }
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          "image/png": Promise.resolve(blob),
-        }),
-      ]);
-      return { kind: "image", blob, text, previewUrl };
-    } catch {
-      // Fall through.
+      // Keep image-only result; UI still shows caption.
     }
   }
 
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    // Clipboard blocked — caller still has the preview/download + caption UI.
-  }
-  return { kind: "text", blob, text, previewUrl };
+  return { kind, blob, text, previewUrl };
 }
 
 /** Try the OS share sheet with the card image attached (mobile / supported browsers). */
