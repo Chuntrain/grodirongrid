@@ -1,6 +1,6 @@
 export type ShareMode = "blank" | "score" | "answers";
 
-type ShareInput = {
+export type ShareInput = {
   mode: ShareMode;
   brand: string;
   puzzleNumber: number;
@@ -11,6 +11,8 @@ type ShareInput = {
   cells: ({ answer: string; status: "correct" | "wrong" } | null)[];
   teams: string[];
   categories: string[];
+  /** Today's nine selectable player names for the share card. */
+  pool?: string[];
 };
 
 /** 5 reaction tiers by score percent (out of 9). */
@@ -27,86 +29,71 @@ export function scoreReaction(score: number, total = 9): {
   return { emoji: "😄", label: "Cooking", percent };
 }
 
-/** Board cells never spoil right/wrong — filled vs empty only. */
-function cellMark(cell: ShareInput["cells"][number], mode: ShareMode): string {
-  if (mode === "blank") return "⬜";
-  return cell ? "🟨" : "⬜";
-}
-
 function shortLabel(value: string, max = 10): string {
   const cleaned = value.trim();
   if (cleaned.length <= max) return cleaned.toUpperCase();
   return `${cleaned.slice(0, max - 1).toUpperCase()}…`;
 }
 
-function axisHeader(categories: string[]): string {
-  return `      ${categories.map((category) => shortLabel(category, 8)).join("  ")}`;
-}
-
-function gridLinesWithAxes(input: ShareInput): string[] {
-  const { cells, mode, teams, categories } = input;
-  const lines = [axisHeader(categories)];
-  for (let row = 0; row < 3; row++) {
-    const rowEmojis = [0, 1, 2]
-      .map((col) => cellMark(cells[row * 3 + col], mode))
-      .join("");
-    lines.push(`${shortLabel(teams[row], 7).padEnd(8)}${rowEmojis}`);
-  }
-  return lines;
-}
-
 function viralHook(mode: ShareMode, score: number): string {
   const reaction = scoreReaction(score);
   if (mode === "blank") {
-    return "Can you fill all 9 before answers drop tomorrow?";
+    return "Can you place all 9?";
   }
-  if (mode === "answers") {
-    // Treated like score for sharing — never leak pick names.
-    return `I got ${score}/9 ${reaction.emoji} — am I right though?? Official answers drop tomorrow.`;
-  }
-  return `I got ${score}/9 ${reaction.emoji} — am I right though?? Official answers drop tomorrow.`;
+  return `I got ${score}/9 ${reaction.emoji} — beat me?`;
 }
 
+/** Short clipboard/social text — no emoji table (the image is the board). */
 export function buildShareText(input: ShareInput): string {
-  const { mode, brand, puzzleNumber, dateKey, score, streak, siteUrl, cells, teams, categories } =
-    input;
-  const board = gridLinesWithAxes(input);
+  const { mode, brand, puzzleNumber, dateKey, score, siteUrl } = input;
   const header = `${brand} #${String(puzzleNumber).padStart(3, "0")} · ${dateKey}`;
-  const hook = viralHook(mode, score);
-  const reaction = scoreReaction(score);
-  const linkLine = `Play + answers → ${siteUrl}`;
+  const hook = viralHook(mode === "answers" ? "score" : mode, score);
+  return [header, hook, `Play free → ${siteUrl}`, "#GridironGrid"].join("\n");
+}
 
-  if (mode === "blank") {
-    return [
-      header,
-      hook,
-      linkLine,
-      "",
-      "Teams ↓ / feats →",
-      ...board,
-      "",
-      "Fill all 9 and drop your score in the comments",
-      "#GridironGrid #DailyTrivia #AmIRight",
-    ].join("\n");
-  }
+export type SocialTarget = {
+  id: string;
+  label: string;
+  href: string;
+};
 
-  // "answers" mode used to list pick names — that spoils the board. Fall through to score share.
+/** Deep links to open native share sheets / compose windows. */
+export function socialShareTargets(text: string, url: string): SocialTarget[] {
+  const encodedText = encodeURIComponent(text);
+  const encodedUrl = encodeURIComponent(url);
+  const combined = encodeURIComponent(`${text}\n${url}`);
   return [
-    header,
-    hook,
-    linkLine,
-    streak > 0 ? `Streak: ${streak} day${streak === 1 ? "" : "s"} 🔥` : "",
-    "",
-    "Teams ↓ / feats →",
-    ...board,
-    "",
-    `Score vibe: ${reaction.emoji} ${reaction.label}`,
-    "🟨 = locked picks · official answers tomorrow",
-    "",
-    "#GridironGrid #AmIRight",
-  ]
-    .filter((line, index, arr) => line !== "" || arr[index - 1] !== "")
-    .join("\n");
+    {
+      id: "x",
+      label: "X",
+      href: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
+    },
+    {
+      id: "facebook",
+      label: "Facebook",
+      href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`,
+    },
+    {
+      id: "linkedin",
+      label: "LinkedIn",
+      href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+    },
+    {
+      id: "whatsapp",
+      label: "WhatsApp",
+      href: `https://wa.me/?text=${combined}`,
+    },
+    {
+      id: "telegram",
+      label: "Telegram",
+      href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
+    },
+    {
+      id: "reddit",
+      label: "Reddit",
+      href: `https://www.reddit.com/submit?url=${encodedUrl}&title=${encodedText}`,
+    },
+  ];
 }
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -126,9 +113,41 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines;
 }
 
+function drawWrappedName(
+  ctx: CanvasRenderingContext2D,
+  name: string,
+  cx: number,
+  cy: number,
+  maxWidth: number,
+) {
+  const words = name.toUpperCase().split(/\s+/);
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (ctx.measureText(next).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  }
+  if (current) lines.push(current);
+  const shown = lines.slice(0, 2);
+  if (lines.length > 2) {
+    shown[1] = `${shown[1].slice(0, Math.max(1, shown[1].length - 1))}…`;
+  }
+  const lineHeight = 20;
+  const startY = cy - ((shown.length - 1) * lineHeight) / 2;
+  shown.forEach((line, index) => {
+    const w = ctx.measureText(line).width;
+    ctx.fillText(line, cx - w / 2, startY + index * lineHeight);
+  });
+}
+
 export async function renderShareImage(input: ShareInput): Promise<Blob> {
   const width = 1080;
-  const height = 1350;
+  const height = 1480;
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -141,73 +160,72 @@ export async function renderShareImage(input: ShareInput): Promise<Blob> {
   const field = "#153F2D";
   const cream = "#E9E3D3";
   const reaction = scoreReaction(input.score);
+  const mode = input.mode === "answers" ? "score" : input.mode;
+  const pool = (input.pool ?? []).slice(0, 9);
 
   ctx.fillStyle = ink;
   ctx.fillRect(0, 0, width, height);
 
   ctx.fillStyle = lime;
-  ctx.fillRect(0, 0, width, 120);
+  ctx.fillRect(0, 0, width, 110);
 
   ctx.fillStyle = ink;
-  ctx.font = "800 42px Barlow Condensed, Arial Black, sans-serif";
-  ctx.fillText("GRIDIRON GRID", 48, 78);
+  ctx.font = "800 40px Barlow Condensed, Arial Black, sans-serif";
+  ctx.fillText(input.brand.toUpperCase(), 48, 72);
 
-  ctx.font = "600 26px Inter, Arial, sans-serif";
+  ctx.font = "600 24px Inter, Arial, sans-serif";
   ctx.fillStyle = "#c8cec5";
-  ctx.fillText(`#${String(input.puzzleNumber).padStart(3, "0")} · ${input.dateKey}`, 48, 168);
+  ctx.fillText(`#${String(input.puzzleNumber).padStart(3, "0")} · ${input.dateKey}`, 48, 158);
 
-  const hook = viralHook(input.mode, input.score);
+  const hook = viralHook(mode, input.score);
   ctx.fillStyle = paper;
-  ctx.font = "800 44px Barlow Condensed, Arial Black, sans-serif";
+  ctx.font = "800 42px Barlow Condensed, Arial Black, sans-serif";
   const hookLines = wrapText(ctx, hook, width - 96);
   hookLines.forEach((line, index) => {
-    ctx.fillText(line, 48, 230 + index * 50);
+    ctx.fillText(line, 48, 215 + index * 46);
   });
 
-  // Big reaction badge for score modes
-  if (input.mode !== "blank") {
-    const badgeY = 230 + hookLines.length * 50 + 10;
-    ctx.font = "72px Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif";
-    ctx.fillText(reaction.emoji, 48, badgeY + 60);
+  let cursorY = 215 + hookLines.length * 46 + 18;
+  if (mode !== "blank") {
+    ctx.font = "64px Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif";
+    ctx.fillText(reaction.emoji, 48, cursorY + 52);
     ctx.fillStyle = lime;
-    ctx.font = "800 40px Barlow Condensed, Arial Black, sans-serif";
-    ctx.fillText(`${input.score}/9 · ${reaction.label.toUpperCase()}`, 140, badgeY + 48);
+    ctx.font = "800 36px Barlow Condensed, Arial Black, sans-serif";
+    ctx.fillText(`${input.score}/9 · ${reaction.label.toUpperCase()}`, 130, cursorY + 42);
+    cursorY += 78;
   }
 
-  const labelCol = 170;
-  const square = 180;
-  const gap = 14;
+  const labelCol = 160;
+  const square = 168;
+  const gap = 12;
   const boardW = labelCol + square * 3 + gap * 2;
   const startX = (width - boardW) / 2;
-  const startY =
-    input.mode === "blank"
-      ? 230 + hookLines.length * 50 + 28
-      : 230 + hookLines.length * 50 + 100;
+  const startY = cursorY;
 
   ctx.fillStyle = cream;
-  ctx.fillRect(startX + labelCol, startY, square * 3 + gap * 2, 72);
+  ctx.fillRect(startX + labelCol, startY, square * 3 + gap * 2, 64);
   ctx.fillStyle = ink;
-  ctx.font = "800 20px Barlow Condensed, Arial Black, sans-serif";
+  ctx.font = "800 18px Barlow Condensed, Arial Black, sans-serif";
   input.categories.forEach((category, col) => {
     const x = startX + labelCol + col * (square + gap);
     const label = shortLabel(category, 12);
     const textWidth = ctx.measureText(label).width;
-    ctx.fillText(label, x + (square - textWidth) / 2, startY + 44);
+    ctx.fillText(label, x + (square - textWidth) / 2, startY + 40);
   });
 
   ctx.fillStyle = "#2a3128";
-  ctx.fillRect(startX, startY, labelCol - 12, 72);
+  ctx.fillRect(startX, startY, labelCol - 12, 64);
   ctx.fillStyle = lime;
-  ctx.font = "700 16px Inter, Arial, sans-serif";
-  ctx.fillText("TEAM × FEAT", startX + 18, startY + 42);
+  ctx.font = "700 15px Inter, Arial, sans-serif";
+  ctx.fillText("TEAM × FEAT", startX + 16, startY + 38);
 
   for (let row = 0; row < 3; row++) {
-    const y = startY + 72 + 12 + row * (square + gap);
+    const y = startY + 64 + 10 + row * (square + gap);
 
     ctx.fillStyle = cream;
     ctx.fillRect(startX, y, labelCol - 12, square);
     ctx.fillStyle = ink;
-    ctx.font = "800 24px Barlow Condensed, Arial Black, sans-serif";
+    ctx.font = "800 22px Barlow Condensed, Arial Black, sans-serif";
     const team = shortLabel(input.teams[row], 10);
     const teamWidth = ctx.measureText(team).width;
     ctx.fillText(team, startX + (labelCol - 12 - teamWidth) / 2, y + square / 2 + 8);
@@ -220,38 +238,56 @@ export async function renderShareImage(input: ShareInput): Promise<Blob> {
       ctx.fillStyle = paper;
       ctx.fillRect(x, y, square, square);
 
-      if (input.mode === "blank" || !cell) {
+      if (!cell) {
         ctx.fillStyle = "#b8b5aa";
-        ctx.font = "700 56px Barlow Condensed, Arial, sans-serif";
+        ctx.font = "700 52px Barlow Condensed, Arial, sans-serif";
         const num = String(index + 1);
         const numW = ctx.measureText(num).width;
         ctx.fillText(num, x + (square - numW) / 2, y + square / 2 + 18);
       } else {
         ctx.fillStyle = "#f0e3a8";
-        ctx.fillRect(x + 12, y + 12, square - 24, square - 24);
+        ctx.fillRect(x + 10, y + 10, square - 20, square - 20);
         ctx.fillStyle = ink;
-        ctx.font = "700 18px Inter, Arial, sans-serif";
-        const name =
-          input.mode === "answers"
-            ? cell.answer.length > 14
-              ? `${cell.answer.slice(0, 13)}…`
-              : cell.answer
-            : `PICK ${index + 1}`;
-        const nameW = ctx.measureText(name).width;
-        ctx.fillText(name, x + (square - nameW) / 2, y + square / 2 + 6);
+        ctx.font = "800 17px Barlow Condensed, Arial Black, sans-serif";
+        drawWrappedName(ctx, cell.answer, x + square / 2, y + square / 2 + 4, square - 28);
       }
     }
   }
 
+  const boardBottom = startY + 64 + 10 + 3 * (square + gap);
+  let poolY = boardBottom + 28;
+
+  if (pool.length > 0) {
+    ctx.fillStyle = lime;
+    ctx.font = "800 26px Barlow Condensed, Arial Black, sans-serif";
+    ctx.fillText("PLAYER POOL — PICK FROM THESE 9", 48, poolY);
+    poolY += 28;
+
+    ctx.font = "700 22px Inter, Arial, sans-serif";
+    const colW = (width - 96) / 3;
+    pool.forEach((name, index) => {
+      const col = index % 3;
+      const row = Math.floor(index / 3);
+      const x = 48 + col * colW;
+      const y = poolY + row * 36;
+      ctx.fillStyle = cream;
+      ctx.fillRect(x, y, colW - 12, 30);
+      ctx.fillStyle = ink;
+      const label = `${index + 1}. ${shortLabel(name, 14)}`;
+      ctx.fillText(label, x + 10, y + 21);
+    });
+    poolY += 3 * 36 + 16;
+  }
+
   ctx.fillStyle = "#aeb5ab";
-  ctx.font = "500 22px Inter, Arial, sans-serif";
-  ctx.fillText("Official answers drop tomorrow · no spoilers", 48, height - 170);
+  ctx.font = "500 20px Inter, Arial, sans-serif";
+  ctx.fillText("Paste this card · play free at the link", 48, height - 160);
 
   ctx.fillStyle = field;
-  ctx.fillRect(0, height - 140, width, 140);
+  ctx.fillRect(0, height - 130, width, 130);
   ctx.fillStyle = lime;
-  ctx.font = "800 34px Barlow Condensed, Arial Black, sans-serif";
-  ctx.fillText("PLAY FREE DAILY · gridirongrid.org", 48, height - 72);
+  ctx.font = "800 32px Barlow Condensed, Arial Black, sans-serif";
+  ctx.fillText("PLAY FREE DAILY · gridirongrid.org", 48, height - 68);
 
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
@@ -261,12 +297,11 @@ export async function renderShareImage(input: ShareInput): Promise<Blob> {
   });
 }
 
-/** Copy share card image + text link together when the browser allows it. */
+/** Copy share card image + short text link together when the browser allows it. */
 export async function shareCardToClipboard(
   input: ShareInput,
   _filePrefix?: string,
 ): Promise<"both" | "image" | "text"> {
-  // Never share actual pick names — score/blank cells only.
   const safeInput: ShareInput =
     input.mode === "answers" ? { ...input, mode: "score" } : input;
   const text = buildShareText(safeInput);
@@ -274,7 +309,6 @@ export async function shareCardToClipboard(
   const textBlob = new Blob([text], { type: "text/plain" });
 
   if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
-    // Chrome / Edge / Safari: image + text in one write (Promises help Safari).
     try {
       await navigator.clipboard.write([
         new ClipboardItem({
@@ -297,7 +331,6 @@ export async function shareCardToClipboard(
     } catch {
       // Fall through.
     }
-    // Image-only — do NOT call writeText afterward (it replaces the image).
     try {
       await navigator.clipboard.write([
         new ClipboardItem({

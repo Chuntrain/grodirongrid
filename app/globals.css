@@ -157,6 +157,21 @@ button, input { font: inherit; }
 .share-actions button.primary { background:var(--field); color:white; border-color:var(--field); }
 .share-overlay { justify-content:center; align-items:center; padding:16px; }
 .share-overlay .answer-drawer { margin:0; height:auto; max-height:92vh; box-shadow:0 24px 80px #0009; }
+.clipboard-banner { margin-top:18px; display:flex; align-items:center; gap:12px; padding:14px 16px; background:#153f2d; color:white; }
+.clipboard-banner > span { width:34px; height:34px; border-radius:50%; background:var(--lime); color:var(--ink); display:grid; place-items:center; font-weight:900; font-size:18px; }
+.clipboard-banner strong { font-family:var(--font-display); font-size:22px; text-transform:uppercase; letter-spacing:.03em; }
+.social-share-grid { margin-top:18px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.social-share-btn { display:flex; align-items:center; justify-content:center; gap:8px; min-height:46px; border:1px solid #bbb7aa; background:#faf8f1; color:var(--ink); text-decoration:none; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; cursor:pointer; padding:8px; }
+.social-share-btn:hover { border-color:var(--ink); background:#f2f8d8; }
+.social-icon { width:22px; height:22px; border-radius:4px; display:grid; place-items:center; font-size:12px; font-weight:900; background:var(--ink); color:var(--lime); }
+.social-x .social-icon { background:#000; color:#fff; }
+.social-facebook .social-icon { background:#1877f2; color:#fff; }
+.social-linkedin .social-icon { background:#0a66c2; color:#fff; }
+.social-whatsapp .social-icon { background:#25d366; color:#fff; }
+.social-telegram .social-icon { background:#229ed9; color:#fff; }
+.social-reddit .social-icon { background:#ff4500; color:#fff; }
+.social-link .social-icon { background:var(--field); color:var(--lime); }
+.share-done-drawer .share-actions { margin-top:18px; }
 
 .ticker { background: var(--lime); padding: 17px 2vw; display: flex; justify-content: space-around; gap: 18px; font-family: var(--font-display); font-size: 19px; font-weight: 800; letter-spacing: .04em; overflow: hidden; white-space: nowrap; }
 .ticker i { font-style: normal; }
@@ -253,6 +268,7 @@ footer > small { text-align: right; }
   .game-footer { align-items: stretch; flex-direction: column; }
   .share-button { width: 100%; }
   .share-actions { grid-template-columns:1fr; }
+  .social-share-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .result-banner { flex-direction: column; align-items: stretch; text-align: left; }
   .result-banner > button { width: 100%; }
   .ticker { justify-content: flex-start; }

@@ -8,6 +8,7 @@ import {
   shareCardToClipboard,
   type ShareMode,
 } from "./share-card";
+import { ShareDonePanel } from "./share-done-panel";
 
 export type SportBoard = {
   teams: { id: string; name: string; color: string; accent?: string }[];
@@ -75,8 +76,10 @@ export function SportDailyGrid({
   const [showPrevious, setShowPrevious] = useState(false);
   const [showAnswers, setShowAnswers] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showShareDone, setShowShareDone] = useState(false);
   const [shareMode, setShareMode] = useState<ShareMode>("score");
   const [shareBusy, setShareBusy] = useState(false);
+  const [lastShareText, setLastShareText] = useState("");
 
   const previous = useMemo(() => {
     const day = new Date(`${dateKey}T12:00:00Z`);
@@ -204,22 +207,23 @@ export function SportDailyGrid({
       cells,
       teams: board.teams.map((team) => team.name),
       categories: board.categories.map((category) => category.short),
+      pool: board.pool,
     };
   }
 
   async function oneClickShare(mode: ShareMode) {
     setShareBusy(true);
     try {
-      const kind = await shareCardToClipboard(shareInput(mode));
+      const input = shareInput(mode);
+      const kind = await shareCardToClipboard(input);
       unlockAnswers();
+      setLastShareText(buildShareText(input));
       setShowShare(false);
-      setShowAnswers(true);
+      setShowShareDone(true);
       setMessage(
-        kind === "both"
-          ? "Card + link copied. Here are today's official answers."
-          : kind === "image"
-            ? "Card image copied. Here are today's official answers."
-            : "Share text + link copied. Here are today's official answers.",
+        kind === "text"
+          ? "Added to clipboard (text + link)."
+          : "Added to clipboard — card image + link ready to paste.",
       );
     } catch {
       setMessage("Share failed — try again or allow clipboard access.");
@@ -425,7 +429,7 @@ export function SportDailyGrid({
               <div>
                 <small>ONE-CLICK SHARE</small>
                 <h2>Copy card + link</h2>
-                <p>Copies the card image and a play link to your clipboard — paste into X, IG, FB, LinkedIn.</p>
+                <p>Copies the card image (with player pool names) and a play link — then unlocks answers.</p>
               </div>
               <button onClick={() => setShowShare(false)} aria-label="Close">
                 ×
@@ -434,7 +438,7 @@ export function SportDailyGrid({
             <div className="share-mode-tabs" role="tablist">
               {(
                 [
-                  ["blank", "Blank challenge", "Axes only — dare your friends"],
+                  ["blank", "Blank challenge", "Axes + player pool — dare your friends"],
                   [
                     "score",
                     "My score vibe",
@@ -456,9 +460,6 @@ export function SportDailyGrid({
                 </button>
               ))}
             </div>
-            <pre className="share-preview">
-              {buildShareText(shareInput(shareMode === "score" && !revealed ? "blank" : shareMode))}
-            </pre>
             <div className="share-actions single">
               <button
                 type="button"
@@ -472,10 +473,22 @@ export function SportDailyGrid({
               </button>
             </div>
             <p className="drawer-note">
-              No names on the shared card. After you copy, official answers unlock here.
+              Shared card shows your locked player names and today&apos;s 9-player pool. No text table — paste the image.
             </p>
           </section>
         </div>
+      )}
+
+      {showShareDone && (
+        <ShareDonePanel
+          siteUrl={siteUrl}
+          shareText={lastShareText || buildShareText(shareInput(finished || revealed ? "score" : "blank"))}
+          onClose={() => setShowShareDone(false)}
+          onViewAnswers={() => {
+            setShowShareDone(false);
+            setShowAnswers(true);
+          }}
+        />
       )}
 
       {showAnswers && (
