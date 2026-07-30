@@ -377,7 +377,7 @@ export function SportDailyGrid({
             </strong>
             <span>
               {answersUnlocked
-                ? "Answers unlocked. Board is locked for today."
+                ? "Answers unlocked for this session. Refresh to play again."
                 : "Share your card to unlock today's official answers."}
             </span>
           </div>
