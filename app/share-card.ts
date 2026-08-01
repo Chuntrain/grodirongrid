@@ -198,7 +198,13 @@ function drawWrappedName(
   cx: number,
   cy: number,
   maxWidth: number,
+  options?: { fontSize?: number; lineHeight?: number; maxLines?: number },
 ) {
+  const fontSize = options?.fontSize ?? 22;
+  const lineHeight = options?.lineHeight ?? Math.round(fontSize * 1.15);
+  const maxLines = options?.maxLines ?? 3;
+  ctx.font = `800 ${fontSize}px Barlow Condensed, Arial Black, sans-serif`;
+
   const words = name.toUpperCase().split(/\s+/);
   const lines: string[] = [];
   let current = "";
@@ -212,11 +218,31 @@ function drawWrappedName(
     }
   }
   if (current) lines.push(current);
-  const shown = lines.slice(0, 2);
-  if (lines.length > 2) {
-    shown[1] = `${shown[1].slice(0, Math.max(1, shown[1].length - 1))}…`;
+
+  const fitted: string[] = [];
+  for (const line of lines) {
+    if (ctx.measureText(line).width <= maxWidth) {
+      fitted.push(line);
+      continue;
+    }
+    let chunk = "";
+    for (const ch of line) {
+      const next = chunk + ch;
+      if (ctx.measureText(next).width > maxWidth && chunk) {
+        fitted.push(chunk);
+        chunk = ch;
+      } else {
+        chunk = next;
+      }
+    }
+    if (chunk) fitted.push(chunk);
   }
-  const lineHeight = 20;
+
+  const shown = fitted.slice(0, maxLines);
+  if (fitted.length > maxLines) {
+    const last = shown[maxLines - 1];
+    shown[maxLines - 1] = `${last.slice(0, Math.max(1, last.length - 1))}…`;
+  }
   const startY = cy - ((shown.length - 1) * lineHeight) / 2;
   shown.forEach((line, index) => {
     const w = ctx.measureText(line).width;
@@ -226,7 +252,7 @@ function drawWrappedName(
 
 export async function renderShareImage(input: ShareInput): Promise<Blob> {
   const width = 1080;
-  const height = 1480;
+  const height = 1350;
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -235,161 +261,175 @@ export async function renderShareImage(input: ShareInput): Promise<Blob> {
 
   const lime = "#D4FF39";
   const ink = "#10140F";
-  const paper = "#F3F0E7";
+  const paper = "#FBFAF6";
   const field = "#153F2D";
   const cream = "#E9E3D3";
+  const gridLine = "#C7C4B9";
   const reaction = scoreReaction(input.score);
   const mode = input.mode === "answers" ? "score" : input.mode;
-  const pool = (input.pool ?? []).slice(0, 9);
   const logoUrls = (input.teamLogos ?? []).slice(0, 3);
   const logos = await Promise.all(logoUrls.map((src) => (src ? loadImage(src) : Promise.resolve(null))));
 
   ctx.fillStyle = ink;
   ctx.fillRect(0, 0, width, height);
 
+  // Compact brand bar — keep the table as the hero.
   ctx.fillStyle = lime;
-  ctx.fillRect(0, 0, width, 110);
-
+  ctx.fillRect(0, 0, width, 88);
   ctx.fillStyle = ink;
-  ctx.font = "800 40px Barlow Condensed, Arial Black, sans-serif";
-  ctx.fillText(input.brand.toUpperCase(), 48, 72);
+  ctx.font = "800 36px Barlow Condensed, Arial Black, sans-serif";
+  ctx.fillText(input.brand.toUpperCase(), 40, 58);
 
-  ctx.font = "600 24px Inter, Arial, sans-serif";
-  ctx.fillStyle = "#c8cec5";
-  ctx.fillText(`#${String(input.puzzleNumber).padStart(3, "0")} · ${input.dateKey}`, 48, 158);
+  ctx.font = "700 22px Inter, Arial, sans-serif";
+  ctx.fillStyle = "#2a3128";
+  const meta = `#${String(input.puzzleNumber).padStart(3, "0")} · ${input.dateKey}`;
+  const metaW = ctx.measureText(meta).width;
+  ctx.fillText(meta, width - 40 - metaW, 58);
 
-  const hook = viralHook(mode, input.score);
+  const hook =
+    mode === "blank" ? viralHook("blank", 0) : `${input.score}/9 ${reaction.emoji} · ${reaction.label}`;
   ctx.fillStyle = paper;
-  ctx.font = "800 42px Barlow Condensed, Arial Black, sans-serif";
-  const hookLines = wrapText(ctx, hook, width - 96);
-  hookLines.forEach((line, index) => {
-    ctx.fillText(line, 48, 215 + index * 46);
-  });
+  ctx.font = "800 34px Barlow Condensed, Arial Black, sans-serif";
+  ctx.fillText(hook, 40, 140);
 
-  let cursorY = 215 + hookLines.length * 46 + 18;
-  if (mode !== "blank") {
-    ctx.font = "64px Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif";
-    ctx.fillText(reaction.emoji, 48, cursorY + 52);
-    ctx.fillStyle = lime;
-    ctx.font = "800 36px Barlow Condensed, Arial Black, sans-serif";
-    ctx.fillText(`${input.score}/9 · ${reaction.label.toUpperCase()}`, 130, cursorY + 42);
-    cursorY += 78;
-  }
+  // Big contiguous table — nearly full card width.
+  const marginX = 36;
+  const labelCol = 168;
+  const availableW = width - marginX * 2 - labelCol;
+  const square = Math.floor(availableW / 3);
+  const boardW = labelCol + square * 3;
+  const startX = Math.round((width - boardW) / 2);
+  const startY = 168;
+  const teamColW = labelCol;
 
-  const labelCol = 176;
-  const square = 176;
-  const gap = 12;
-  const boardW = labelCol + square * 3 + gap * 2;
-  const startX = (width - boardW) / 2;
-  const startY = cursorY;
-  const teamColW = labelCol - 12;
-  const categoryPad = 10;
-  const categoryLineH = 20;
-
-  // Full X-axis labels — wrap to fit the column, never ellipsis-truncate.
-  ctx.font = "800 18px Barlow Condensed, Arial Black, sans-serif";
+  ctx.font = "800 20px Barlow Condensed, Arial Black, sans-serif";
   const categoryLines = input.categories.map((category) =>
-    wrapText(ctx, category.trim().toUpperCase(), square - categoryPad * 2),
+    wrapText(ctx, category.trim().toUpperCase(), square - 16),
   );
   const maxCatLines = Math.max(1, ...categoryLines.map((lines) => lines.length));
-  const headerH = Math.max(72, 28 + maxCatLines * categoryLineH);
+  const headerH = Math.max(88, 28 + maxCatLines * 22);
 
   ctx.fillStyle = cream;
-  ctx.fillRect(startX + labelCol, startY, square * 3 + gap * 2, headerH);
-  ctx.fillStyle = ink;
-  ctx.font = "800 18px Barlow Condensed, Arial Black, sans-serif";
-  categoryLines.forEach((lines, col) => {
-    const x = startX + labelCol + col * (square + gap);
-    drawCenteredLines(ctx, lines, x + square / 2, startY + headerH / 2 + 6, categoryLineH);
-  });
+  ctx.fillRect(startX, startY, boardW, headerH + square * 3);
 
   ctx.fillStyle = "#2a3128";
   ctx.fillRect(startX, startY, teamColW, headerH);
   ctx.fillStyle = lime;
-  ctx.font = "700 15px Inter, Arial, sans-serif";
-  ctx.fillText("TEAM × FEAT", startX + 16, startY + headerH / 2 + 5);
+  ctx.font = "800 16px Inter, Arial, sans-serif";
+  ctx.fillText("TEAM", startX + 24, startY + headerH / 2 - 4);
+  ctx.fillText("× FEAT", startX + 24, startY + headerH / 2 + 18);
+
+  categoryLines.forEach((lines, col) => {
+    const x = startX + labelCol + col * square;
+    ctx.fillStyle = cream;
+    ctx.fillRect(x, startY, square, headerH);
+    ctx.fillStyle = ink;
+    ctx.font = "800 20px Barlow Condensed, Arial Black, sans-serif";
+    drawCenteredLines(ctx, lines, x + square / 2, startY + headerH / 2 + 6, 22);
+  });
 
   for (let row = 0; row < 3; row++) {
-    const y = startY + headerH + 10 + row * (square + gap);
+    const y = startY + headerH + row * square;
     const logo = logos[row];
     const teamName = (input.teams[row] ?? "").trim();
 
     ctx.fillStyle = cream;
     ctx.fillRect(startX, y, teamColW, square);
 
-    // Team logo + name (match the live board: logo above, name below).
     if (logo) {
-      const logoBox = 78;
-      drawImageContain(ctx, logo, startX + (teamColW - logoBox) / 2, y + 18, logoBox);
+      const logoBox = 72;
+      drawImageContain(ctx, logo, startX + (teamColW - logoBox) / 2, y + 22, logoBox);
       ctx.fillStyle = ink;
-      ctx.font = "800 18px Barlow Condensed, Arial Black, sans-serif";
+      ctx.font = "800 20px Barlow Condensed, Arial Black, sans-serif";
       const nameLines = wrapText(ctx, teamName.toUpperCase(), teamColW - 16);
-      drawCenteredLines(ctx, nameLines.slice(0, 2), startX + teamColW / 2, y + square - 28, 18);
+      drawCenteredLines(ctx, nameLines.slice(0, 2), startX + teamColW / 2, y + square - 28, 20);
     } else {
       ctx.fillStyle = ink;
-      ctx.font = "800 22px Barlow Condensed, Arial Black, sans-serif";
+      ctx.font = "800 24px Barlow Condensed, Arial Black, sans-serif";
       const nameLines = wrapText(ctx, teamName.toUpperCase(), teamColW - 16);
-      drawCenteredLines(ctx, nameLines.slice(0, 3), startX + teamColW / 2, y + square / 2 + 6, 22);
+      drawCenteredLines(ctx, nameLines.slice(0, 3), startX + teamColW / 2, y + square / 2 + 6, 24);
     }
 
     for (let col = 0; col < 3; col++) {
       const index = row * 3 + col;
       const cell = input.cells[index];
-      const x = startX + labelCol + col * (square + gap);
+      const x = startX + labelCol + col * square;
 
       ctx.fillStyle = paper;
       ctx.fillRect(x, y, square, square);
 
       if (!cell) {
-        ctx.fillStyle = "#b8b5aa";
-        ctx.font = "700 52px Barlow Condensed, Arial, sans-serif";
+        ctx.fillStyle = "#b0aea4";
+        ctx.font = "800 64px Barlow Condensed, Arial Black, sans-serif";
         const num = String(index + 1);
         const numW = ctx.measureText(num).width;
-        ctx.fillText(num, x + (square - numW) / 2, y + square / 2 + 18);
+        ctx.fillText(num, x + (square - numW) / 2, y + square / 2 + 22);
       } else {
-        ctx.fillStyle = "#f0e3a8";
+        ctx.fillStyle = "#F0E3A8";
         ctx.fillRect(x + 10, y + 10, square - 20, square - 20);
         ctx.fillStyle = ink;
-        ctx.font = "800 17px Barlow Condensed, Arial Black, sans-serif";
-        drawWrappedName(ctx, cell.answer, x + square / 2, y + square / 2 + 4, square - 28);
+        const nameSize = cell.answer.length > 14 ? 26 : cell.answer.length > 10 ? 30 : 34;
+        drawWrappedName(ctx, cell.answer, x + square / 2, y + square / 2 + 4, square - 28, {
+          fontSize: nameSize,
+          lineHeight: Math.round(nameSize * 1.12),
+          maxLines: 3,
+        });
       }
     }
   }
 
-  const boardBottom = startY + headerH + 10 + 3 * (square + gap);
-  let poolY = boardBottom + 28;
+  // Spreadsheet-style grid lines so the board reads as a clear table.
+  ctx.strokeStyle = ink;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(startX + 1.5, startY + 1.5, boardW - 3, headerH + square * 3 - 3);
 
-  if (pool.length > 0) {
-    ctx.fillStyle = lime;
-    ctx.font = "800 26px Barlow Condensed, Arial Black, sans-serif";
-    ctx.fillText("PLAYER POOL — PICK FROM THESE 9", 48, poolY);
-    poolY += 28;
-
-    ctx.font = "700 22px Inter, Arial, sans-serif";
-    const colW = (width - 96) / 3;
-    pool.forEach((name, index) => {
-      const col = index % 3;
-      const row = Math.floor(index / 3);
-      const x = 48 + col * colW;
-      const y = poolY + row * 36;
-      ctx.fillStyle = cream;
-      ctx.fillRect(x, y, colW - 12, 30);
-      ctx.fillStyle = ink;
-      const label = `${index + 1}. ${shortLabel(name, 14)}`;
-      ctx.fillText(label, x + 10, y + 21);
-    });
-    poolY += 3 * 36 + 16;
+  ctx.strokeStyle = gridLine;
+  ctx.lineWidth = 2;
+  for (let i = 1; i < 3; i++) {
+    const x = startX + labelCol + i * square;
+    ctx.beginPath();
+    ctx.moveTo(x, startY);
+    ctx.lineTo(x, startY + headerH + square * 3);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.moveTo(startX + labelCol, startY);
+  ctx.lineTo(startX + labelCol, startY + headerH + square * 3);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(startX, startY + headerH);
+  ctx.lineTo(startX + boardW, startY + headerH);
+  ctx.stroke();
+  for (let i = 1; i < 3; i++) {
+    const y = startY + headerH + i * square;
+    ctx.beginPath();
+    ctx.moveTo(startX, y);
+    ctx.lineTo(startX + boardW, y);
+    ctx.stroke();
   }
 
-  ctx.fillStyle = "#aeb5ab";
-  ctx.font = "500 20px Inter, Arial, sans-serif";
-  ctx.fillText("Paste this card · play free at the link", 48, height - 160);
+  const boardBottom = startY + headerH + square * 3;
+  const pool = (input.pool ?? []).slice(0, 9);
+  if (pool.length > 0) {
+    let poolY = boardBottom + 36;
+    ctx.fillStyle = lime;
+    ctx.font = "800 22px Barlow Condensed, Arial Black, sans-serif";
+    ctx.fillText("TODAY'S 9 PLAYERS", 40, poolY);
+    poolY += 18;
+    ctx.font = "700 18px Inter, Arial, sans-serif";
+    const names = pool.map((n) => n.toUpperCase()).join("  ·  ");
+    const nameLines = wrapText(ctx, names, width - 80);
+    ctx.fillStyle = "#d7dcd4";
+    nameLines.slice(0, 3).forEach((line, i) => {
+      ctx.fillText(line, 40, poolY + 24 + i * 24);
+    });
+  }
 
   ctx.fillStyle = field;
-  ctx.fillRect(0, height - 130, width, 130);
+  ctx.fillRect(0, height - 100, width, 100);
   ctx.fillStyle = lime;
-  ctx.font = "800 32px Barlow Condensed, Arial Black, sans-serif";
-  ctx.fillText("PLAY FREE DAILY · gridirongrid.org", 48, height - 68);
+  ctx.font = "800 30px Barlow Condensed, Arial Black, sans-serif";
+  ctx.fillText("PLAY FREE · gridirongrid.org", 40, height - 42);
 
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
